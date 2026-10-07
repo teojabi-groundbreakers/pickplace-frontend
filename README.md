@@ -1,32 +1,14 @@
-# React + TypeScript + Vite
+# PickPlace Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+지도에서 지역을 탐색하고 업종별 상권의 가능성을 분석하는 React·TypeScript·Vite 기반 프런트엔드입니다.
 
-Currently, two official plugins are available:
+프로젝트의 작업 내용, 결정 사항, 설정과 검증 기록은 **[docs/](docs/README.md)**에서 관리합니다.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- [현재 구성·실행·배포](docs/FRONTEND.md)
+- [API 연동 계약 초안](docs/API.md)
+- [지도 흐름·공급자 설정·장애 대응](docs/MAPS.md)
+- [작업 및 문서화 규칙](docs/DEVELOPMENT.md)
+- [팀 개발 규칙 · Git Flow](docs/TEAM_RULES.md)
+- [작업 이력](docs/WORKLOG.md)
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+기여자와 에이전트는 작업 전에 [AGENTS.md](AGENTS.md)와 관련 문서를 확인합니다.
