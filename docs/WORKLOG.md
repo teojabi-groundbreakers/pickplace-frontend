@@ -2,6 +2,15 @@
 
 날짜는 Asia/Seoul 기준입니다. 현재 사양은 주제 문서에서 관리하며, 이 파일에는 요청과 결정·검증을 작업별로 남깁니다.
 
+## 2026-10-08 · 004 · 지도 작업 브랜치 공유 및 Draft PR 준비
+
+- 요청/범위: 지도 화면과 카카오 점검 작업을 팀 Git Flow에 따라 검토 가능한 상태로 정리.
+- Git Flow: 지도 구현 커밋 `c4cefa9`를 `feature/1-map-workspace`에 푸시하고 [Draft PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3)을 생성. 별도 수정 커밋 `2e9059d`의 `fix/2-kakao-tile-timeout`도 푸시하고 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)를 생성. UI와 공개 GitHub API로 두 PR의 Draft 상태·대상 `develop`·작업 브랜치를 확인.
+- 주요 결정: 실제 카카오 연결과 시각 검증이 남아 있으므로 Draft로 유지. 현재 작업 디렉터리는 feature 브랜치이고 카카오 타임아웃 수정은 별도 worktree에 있음. `git merge-tree --write-tree`에서 두 브랜치의 충돌 없음만 확인했으며 실제 병합이나 병합 결과 테스트는 수행하지 않음.
+- 연결 재확인: 두 개발 출처의 공식 SDK 응답은 여전히 HTTP 401·도메인 불일치. REST API 키 종류 오류는 없음. 키 값을 출력·기록하지 않고 `.env` 제외를 유지.
+- 검증: 구현 단계의 feature 43개·fix 33개 테스트 및 각 포맷·린트·빌드 통과 결과를 PR에 명시. 변경 파일 25개에 실제 설정 키가 없음을 확인했고 문서 링크·경로와 `git diff --check`를 확인. 후속 변경은 문서 상태 정리만이므로 앱 검증을 불필요하게 반복하지 않음.
+- 남은 사항: 사용자 허용 도메인 등록 후 실제 지도·우클릭 행정동 조회·미세 이동 검증, 모바일·태블릿 시각 검증, 최소 1명 리뷰 승인과 `develop` squash merge, 병합 후 이슈·브랜치 정리. `main`·`develop` 직접 커밋/푸시·운영 배포는 하지 않음.
+
 ## 2026-10-08 · 002 · 지도 메인 화면·검색 오버레이·행정동 조회 구현
 
 - 요청/범위: 이슈 #1의 지도 중심 첫 화면, 상단 검색창, 우클릭 행정구역 조회. 카카오 오류 원인 점검 후 도메인 설정 확인과 독립적으로 구현 가능한 작업을 진행.

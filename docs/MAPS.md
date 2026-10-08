@@ -85,7 +85,7 @@ VITE_MAP_MAX_ZOOM=19
 - 복구 중 선택 지역·업종과 분석 요청 상태를 유지하며, 전환 알림과 ‘다시 시도’를 제공합니다.
 - 사용자가 ‘기본 위치도’를 선택하면 배경 타일·배경 표시용 카카오 SDK를 요청하지 않습니다. 단, 별도로 위치 조회를 실행하면 카카오 조회 SDK를 요청합니다. 이미 로드된 타일이나 SDK는 재선택 시 브라우저 캐시/런타임에 남을 수 있습니다.
 
-2026-10-08 이벤트 모의 테스트에서 정상 `tilesloaded` 이후 타일 추가 로드 없는 `bounds_changed`에도 12초 뒤 실패하는 기존 카카오 타임아웃 오탐을 재현했습니다. [이슈 #2](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/2)로 분리했으며 지도 화면 개편 브랜치에는 해당 수정을 섞지 않았습니다. 공식 문서상 타일 추가 로드 없는 미세 이동에서는 `tilesloaded`가 발생하지 않습니다. `fix/2-kakao-tile-timeout`의 별도 worktree에서 수정·검증했으며 아직 이 feature 브랜치에 반영하거나 develop에 병합하지 않았습니다. 수정 브랜치의 전체 테스트 33개·포맷·린트·빌드는 통과했습니다.
+2026-10-08 이벤트 모의 테스트에서 정상 `tilesloaded` 이후 타일 추가 로드 없는 `bounds_changed`에도 12초 뒤 실패하는 기존 카카오 타임아웃 오탐을 재현했습니다. [이슈 #2](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/2)로 분리했으며 지도 화면 개편 브랜치에는 해당 수정을 섞지 않았습니다. 공식 문서상 타일 추가 로드 없는 미세 이동에서는 `tilesloaded`가 발생하지 않습니다. `fix/2-kakao-tile-timeout`의 별도 worktree에서 수정·검증하고 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)를 생성했으며 아직 이 feature 브랜치에 반영하거나 develop에 병합하지 않았습니다. 수정 브랜치의 전체 테스트 33개·포맷·린트·빌드는 통과했습니다.
 
 환경변수 변경 후 개발 서버를 재시작하고 운영 배포는 다시 빌드합니다. 지도 선택 메뉴에서도 사용할 수 있는 공급자를 전환할 수 있습니다.
 
