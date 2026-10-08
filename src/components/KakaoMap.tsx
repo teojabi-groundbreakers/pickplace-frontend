@@ -3,6 +3,7 @@ import { LocateFixed, MapPin, Minus, Plus } from 'lucide-react'
 import type { MapRendererProps } from '../types/map'
 import type { KakaoMap as KakaoMapInstance, KakaoMapsApi, KakaoMouseEvent } from '../lib/kakaoMaps'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
+import { bindKakaoMapWheel } from '../lib/kakaoMapWheel'
 import { mapSettings } from '../lib/mapProviders'
 
 export function KakaoMap({
@@ -27,6 +28,7 @@ export function KakaoMap({
     let cancelled = false
     let observer: ResizeObserver | undefined
     let clearHealthCheck = () => {}
+    let clearWheel = () => {}
     loadKakaoMaps(mapSettings.kakaoAppKey)
       .then((maps) => {
         if (cancelled || !container.current) return
@@ -40,6 +42,7 @@ export function KakaoMap({
             disableDoubleClickZoom: false,
           })
           const map = instance.current
+          clearWheel = bindKakaoMapWheel(container.current, map, maps)
           let errors = 0
           let timer: ReturnType<typeof setTimeout>
           const beginLoad = () => {
@@ -79,6 +82,7 @@ export function KakaoMap({
     return () => {
       cancelled = true
       clearHealthCheck()
+      clearWheel()
       observer?.disconnect()
       instance.current = null
       element?.replaceChildren()
