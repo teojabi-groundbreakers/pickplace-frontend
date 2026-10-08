@@ -70,4 +70,5 @@
 - 변경: `src/components/KakaoMap.tsx`의 로드 제한 시간을 첫 타일에만 적용. 영역 변경은 이미지 오류 횟수만 초기화하고 타이머를 재시작하지 않음. 정상 타일 로드 시 타이머와 오류 횟수를 초기화. 초기 무응답·반복 이미지 오류·언마운트 정리를 유지.
 - 주요 결정: 공식 문서상 미세 이동에서는 `tilesloaded`가 발생하지 않을 수 있으므로 영역 변경을 타일 로딩 시작으로 간주하지 않음. 이후 타일 요청이 오류 이벤트 없이 멈추는 상황에는 별도 타임아웃이 없다는 제한을 [지도 문서](MAPS.md)에 명시.
 - 검증: `npm run format`, `npm run format:check`, 전체 8개 파일·33개 테스트, `npm run lint`, `npm run build` 통과. 수정 전 실패하던 회귀 테스트와 기존 지도 복구·검색·API·분석 테스트를 함께 확인. `pnpm` 실행 파일이 없어 동일 package.json 스크립트를 npm으로 실행.
+- 공유: 수정 커밋 `2e9059d`를 원격 작업 브랜치에 푸시하고 `develop` 대상 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)를 생성. UI와 공개 GitHub API에서 대상·브랜치·Draft 상태 확인. 첫 worktree 푸시의 로컬 인증 실패는 원래 작업 디렉터리에서 같은 브랜치를 푸시해 해결. 코드 변경 없이 문서 상태를 정리하고 링크·경로·포맷·`git diff --check` 확인.
 - 남은 사항: JavaScript 키의 허용 도메인 등록 후 실제 지도 표시·미세 이동 확인. 실제 서비스 검증·리뷰·병합은 미완료.
