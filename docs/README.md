@@ -21,6 +21,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 - 기본 실행은 데모 모드이며 수치·평가·진단·분석 경계·시설 마커는 예시 데이터다.
 - 지도 메인 화면·상단 검색 오버레이·우클릭 행정동 조회는 [Draft PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3), 카카오 미세 이동 후 타임아웃 오탐 수정은 별도 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)에 올렸다. 두 PR 모두 대상은 `develop`이며 추가 시각 검증·리뷰·병합은 대기 중이다. 현재 feature 브랜치에는 별도 fix 코드가 포함되지 않는다.
 - 카카오 SDK의 키 종류·허용 도메인 오류 이후 두 로컬 출처에서 SDK HTTP 200을 확인했다. `localhost:5173`에서 실제 도로지도·휠 축척 변화·우클릭과 중심 위치의 행정동 조회 성공을 확인했다. [지도 조작](MAPS.md#카카오-지도-조작)의 드래그·더블클릭 실동작, 모바일 시각 검증·BE 연결·운영 배포는 아직 완료되지 않았다.
+- 데모 연남동의 코드 불일치로 실제 좌표 조회 후 지역 선택이 제한되는 문제는 [이슈 #5](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/5)에서 별도로 처리한다.
 - API 문서는 BE와 확정 전인 계약 초안이다.
 
 최신 작업 내용과 검증 시점은 [작업 이력](WORKLOG.md)에서 확인합니다. 구현 상태가 바뀌면 이 문서와 해당 주제 문서를 함께 갱신합니다.

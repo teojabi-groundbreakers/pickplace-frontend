@@ -9,6 +9,8 @@
 - 변경: `KakaoMap.tsx`에 `draggable: true`, `scrollwheel: true`, `disableDoubleClick: false`, `disableDoubleClickZoom: false` 적용. `kakaoMaps.ts`의 생성 옵션 타입을 정리하고 `Guide.tsx`에 마우스·터치 조작 안내 추가. `docs/MAPS.md`, `README.md`, `FRONTEND.md`, `AGENTS.md`에 현재 동작·연결 확인 상태 반영.
 - 검증: `npm run format`, `npm run format:check`, 전체 10개 파일·43개 테스트, `npm run lint`, `npm run build` 통과. `pnpm`이 없는 환경에서 동일 package.json 스크립트를 npm으로 실행했으며 의존성·잠금 파일은 변경하지 않음. 기존 우클릭·중심 위치·이벤트 해제·조회 경합·검색/분석 테스트와 포맷 후 소스 diff를 직접 확인.
 - 실제 연결: 키 값을 출력하지 않고 두 개발 출처의 공식 SDK HTTP 200 확인. Chrome의 `localhost:5173`에서 실제 도로지도 표시, 휠 조작의 축척 `100m` → `250m` 변화, 우클릭과 중심 위치 조회의 서교동 H 코드 `1144066000`·좌표·선택 버튼 표시 확인.
+- 공유/문서 검증: 구현 커밋 `9e649d1`을 원격 feature 브랜치에 반영하고 PR #3 본문에 제스처 설정·실제 연결 성공·남은 수동 확인 범위를 갱신. GitHub API로 `develop` 대상·feature 브랜치·Draft 상태와 갱신 본문 확인. 기존 Git 인증 도우미를 사용했으며 인증값은 출력하지 않음. 문서 로컬 링크 65개·경로·포맷·`git diff --check` 확인.
+- 후속 상태: PR #4 본문의 오래된 도메인 401 안내를 SDK 연결 성공·해당 fix 브랜치의 실제 미세 이동 확인 대기로 갱신. 시각 검증 중 확인된 데모 연남동 코드 `11440590`과 실제 H 코드 `1144071000`의 불일치는 [이슈 #5](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/5)에 FE 담당·우선순위·근거·완료 조건과 함께 등록. 제스처 변경에 별도 데이터 수정을 섞지 않음.
 - 제한/남은 사항: 자동 조작의 좌표 입력에서 `noWindowsAvailable` 오류가 발생해 실제 드래그·더블클릭 확대는 미검증. 모바일·태블릿/터치·휠 양방향 전체·다른 출처의 렌더링도 추가 확인 필요. 타임아웃 수정 PR #4의 반영·실제 미세 이동 확인, 팀 리뷰·병합·정리와 BE/운영 배포는 미완료.
 
 ## 2026-10-08 · 004 · 지도 작업 브랜치 공유 및 Draft PR 준비
