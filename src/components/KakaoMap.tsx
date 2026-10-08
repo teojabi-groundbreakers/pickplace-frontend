@@ -34,7 +34,10 @@ export function KakaoMap({
           instance.current = new maps.Map(container.current, {
             center: new maps.LatLng(...initialCenter.current),
             level: 5,
-            scrollwheel: false,
+            draggable: true,
+            scrollwheel: true,
+            disableDoubleClick: false,
+            disableDoubleClickZoom: false,
           })
           const map = instance.current
           let errors = 0

@@ -29,14 +29,21 @@ export interface KakaoMouseEvent {
 interface KakaoLayer {
   setMap(map: KakaoMap | null): void
 }
+
+interface KakaoMapOptions {
+  center: KakaoLatLng
+  level: number
+  draggable: boolean
+  scrollwheel: boolean
+  disableDoubleClick: boolean
+  disableDoubleClickZoom: boolean
+}
+
 export interface KakaoMapsApi {
   load(callback: () => void): void
   LatLng: new (lat: number, lng: number) => KakaoLatLng
   LatLngBounds: new () => KakaoBounds
-  Map: new (
-    element: HTMLElement,
-    options: { center: KakaoLatLng; level: number; scrollwheel: boolean },
-  ) => KakaoMap
+  Map: new (element: HTMLElement, options: KakaoMapOptions) => KakaoMap
   CustomOverlay: new (options: {
     map: KakaoMap
     position: KakaoLatLng

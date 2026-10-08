@@ -18,7 +18,7 @@
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 코드 형식, Git 추적·제외 기준, 문서 작성·갱신·검증 규칙                     |
 | [docs/FRONTEND.md](docs/FRONTEND.md)       | 구현 현황, 실행·검증 명령, 환경변수, 구조, 배포 방법, 남은 연계 작업        |
 | [docs/API.md](docs/API.md)                 | BE 연동 계약 초안, 데이터 단위, 점수 의미, 오류 처리                        |
-| [docs/MAPS.md](docs/MAPS.md)               | 지도 흐름·공급자·장애 복구, 카카오 키 종류·허용 도메인 연결 점검            |
+| [docs/MAPS.md](docs/MAPS.md)               | 지도 흐름·마우스/터치 조작·공급자·장애 복구, 카카오 연결 점검               |
 | [docs/WORKLOG.md](docs/WORKLOG.md)         | 작업별 요청·결정·변경·검증·미완료 사항                                      |
 
 ## 유지할 주요 결정
