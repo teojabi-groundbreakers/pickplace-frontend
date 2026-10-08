@@ -56,6 +56,7 @@ export function SearchForm({
   value,
   onChange,
   onSubmit,
+  compact = false,
 }: {
   catalog: Catalog
   initial: AnalysisRequest
@@ -63,6 +64,7 @@ export function SearchForm({
   value?: SearchSelection
   onChange?: (selection: SearchSelection) => void
   onSubmit: (request: AnalysisRequest) => void
+  compact?: boolean
 }) {
   const [localSelection, setLocalSelection] = useState(() => selectionFromRequest(catalog, initial))
   const selection = value || localSelection
@@ -92,13 +94,15 @@ export function SearchForm({
         if (!message) onSubmit(request)
       }}
     >
-      <div className="search-intro">
-        <span>02</span>
-        <div>
-          <h2>어떤 상권이 궁금하세요?</h2>
-          <p>지도에서 지역을 고른 뒤 업종을 선택해 주세요.</p>
+      {!compact && (
+        <div className="search-intro">
+          <span>02</span>
+          <div>
+            <h2>어떤 상권이 궁금하세요?</h2>
+            <p>지도에서 지역을 고른 뒤 업종을 선택해 주세요.</p>
+          </div>
         </div>
-      </div>
+      )}
       <fieldset disabled={pending}>
         <div className="filter-group location-filter">
           <div className="filter-label">

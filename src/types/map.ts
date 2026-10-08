@@ -19,4 +19,6 @@ export interface MapRendererProps {
   disabled?: boolean
   onRegionSelect: (code: string) => void
   onFailure: () => void
+  onPointSelect?: (point: [number, number]) => void
+  lookupPoint?: [number, number]
 }

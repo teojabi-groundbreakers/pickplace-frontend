@@ -8,9 +8,9 @@ import {
   Popup,
   TileLayer,
   Tooltip,
-  useMap,
+  useMapEvents,
 } from 'react-leaflet'
-import { LocateFixed } from 'lucide-react'
+import { LocateFixed, MapPin } from 'lucide-react'
 import type { MapRendererProps } from '../types/map'
 import type { MapProvider } from '../lib/mapProviders'
 import 'leaflet/dist/leaflet.css'
@@ -22,8 +22,13 @@ function Viewport({
   regions,
   selectedRegionCode,
   maxZoom,
-}: Pick<MapRendererProps, 'data' | 'regions' | 'selectedRegionCode'> & { maxZoom: number }) {
-  const map = useMap()
+  onPointSelect,
+}: Pick<MapRendererProps, 'data' | 'regions' | 'selectedRegionCode' | 'onPointSelect'> & {
+  maxZoom: number
+}) {
+  const map = useMapEvents({
+    contextmenu: (event) => onPointSelect?.([event.latlng.lat, event.latlng.lng]),
+  })
   useEffect(() => {
     const observer = new ResizeObserver(() => map.invalidateSize())
     observer.observe(map.getContainer())
@@ -40,14 +45,29 @@ function Viewport({
     else map.setView(data.center, Math.min(14, maxZoom))
   }, [map, data.center, data.boundary, regions, selectedRegionCode, maxZoom])
   return (
-    <button
-      type="button"
-      className="map-recenter"
-      aria-label="선택 지역 중심으로 이동"
-      onClick={() => map.setView(data.center, Math.min(14, maxZoom))}
-    >
-      <LocateFixed size={17} />
-    </button>
+    <>
+      <button
+        type="button"
+        className="map-recenter"
+        aria-label="선택 지역 중심으로 이동"
+        onClick={() => map.setView(data.center, Math.min(14, maxZoom))}
+      >
+        <LocateFixed size={17} />
+      </button>
+      {onPointSelect && (
+        <button
+          type="button"
+          className="map-query-center"
+          onClick={() => {
+            const point = map.getCenter()
+            onPointSelect([point.lat, point.lng])
+          }}
+        >
+          <MapPin size={16} />
+          중심 위치 조회
+        </button>
+      )}
+    </>
   )
 }
 
@@ -105,6 +125,8 @@ export function LeafletMap({
   onRegionSelect,
   onFailure,
   provider,
+  onPointSelect,
+  lookupPoint,
 }: MapRendererProps & { provider: MapProvider }) {
   return (
     <MapContainer
@@ -185,11 +207,19 @@ export function LeafletMap({
           <Popup>{place.name}</Popup>
         </CircleMarker>
       ))}
+      {lookupPoint && (
+        <CircleMarker
+          center={lookupPoint}
+          radius={10}
+          pathOptions={{ color: '#315b43', fillColor: '#fff', fillOpacity: 0.9, weight: 3 }}
+        />
+      )}
       <Viewport
         data={data}
         regions={regions}
         selectedRegionCode={selectedRegionCode}
         maxZoom={provider.maxZoom}
+        onPointSelect={onPointSelect}
       />
     </MapContainer>
   )

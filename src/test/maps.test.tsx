@@ -11,10 +11,18 @@ import {
 } from '../lib/mapProviders'
 import type { MapRendererProps } from '../types/map'
 import { createDemoAnalysis, defaultRequest } from '../data/demo'
+import type { KakaoRegionResult } from '../lib/kakaoMaps'
+
+const lookup = vi.hoisted(() => vi.fn())
+vi.mock('../lib/regionLookup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/regionLookup')>()),
+  lookupAdministrativeRegion: lookup,
+}))
 
 const tiles = vi.hoisted(() => ({
   handlers: null as Record<string, () => void> | null,
   immediateSuccess: false,
+  contextmenu: null as ((event: { latlng: { lat: number; lng: number } }) => void) | null,
 }))
 vi.mock('react-leaflet', async () => {
   const { useEffect } = await import('react')
@@ -23,6 +31,7 @@ vi.mock('react-leaflet', async () => {
     getContainer: () => document.createElement('div'),
     fitBounds: vi.fn(),
     setView: vi.fn(),
+    getCenter: () => ({ lat: 37.54, lng: 127.05 }),
   }
   return {
     MapContainer: ({ children, className }: { children: ReactNode; className: string }) => (
@@ -55,7 +64,10 @@ vi.mock('react-leaflet', async () => {
     Polygon: () => <span data-testid="boundary" />,
     Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     Tooltip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
-    useMap: () => map,
+    useMapEvents: (handlers: { contextmenu: typeof tiles.contextmenu }) => {
+      tiles.contextmenu = handlers.contextmenu
+      return map
+    },
   }
 })
 vi.mock('../components/KakaoMap', () => ({
@@ -80,6 +92,8 @@ const props = {
   onRegionSelect: vi.fn(),
 }
 beforeEach(() => {
+  lookup.mockReset()
+  props.onRegionSelect.mockClear()
   tiles.immediateSuccess = false
   Object.assign(mapSettings, originalSettings, {
     preferred: 'osm',
@@ -94,6 +108,72 @@ beforeEach(() => {
       disconnect() {}
     },
   )
+})
+
+const administrative: KakaoRegionResult = {
+  region_type: 'H',
+  code: '1120069000',
+  address_name: '서울특별시 성동구 성수2가제1동',
+  region_1depth_name: '서울특별시',
+  region_2depth_name: '성동구',
+  region_3depth_name: '성수2가제1동',
+}
+
+describe('지도 위치의 행정구역 조회', () => {
+  it('우클릭한 실제 좌표를 조회하고 확인 후 지원 지역만 선택한다', async () => {
+    lookup.mockResolvedValue(administrative)
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    await act(async () => tiles.contextmenu?.({ latlng: { lat: 37.54, lng: 127.05 } }))
+    expect(lookup).toHaveBeenCalledWith([37.54, 127.05], '', expect.any(AbortSignal))
+    expect(screen.getByText(administrative.address_name)).toBeInTheDocument()
+    expect(props.onRegionSelect).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '이 지역 선택' }))
+    expect(props.onRegionSelect).toHaveBeenCalledWith(defaultRequest.regionCode)
+    expect(screen.queryByRole('region', { name: '행정구역 조회' })).not.toBeInTheDocument()
+  })
+
+  it('지원하지 않는 지역도 조회 결과를 표시하지만 분석 조건으로 선택하지 않는다', async () => {
+    lookup.mockResolvedValue({ ...administrative, code: '9999999999' })
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
+    expect(await screen.findByText(/지원하지 않는 지역/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '이 지역 선택' })).not.toBeInTheDocument()
+  })
+
+  it('이전 조회 응답은 최신 위치를 덮어쓰지 않으며 닫으면 요청을 취소한다', async () => {
+    let first!: (region: KakaoRegionResult) => void
+    let second!: (region: KakaoRegionResult) => void
+    lookup.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          first = resolve
+        }),
+    )
+    lookup.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          second = resolve
+        }),
+    )
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    act(() => {
+      void tiles.contextmenu?.({ latlng: { lat: 37.54, lng: 127.05 } })
+    })
+    const firstSignal = lookup.mock.calls[0][2] as AbortSignal
+    act(() => {
+      void tiles.contextmenu?.({ latlng: { lat: 37.55, lng: 127.06 } })
+    })
+    expect(firstSignal.aborted).toBe(true)
+    await act(async () => second({ ...administrative, address_name: '최신 행정동' }))
+    await act(async () => first({ ...administrative, address_name: '이전 행정동' }))
+    expect(screen.getByText('최신 행정동')).toBeInTheDocument()
+    expect(screen.queryByText('이전 행정동')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '행정구역 조회 닫기' }))
+    expect((lookup.mock.calls[1][2] as AbortSignal).aborted).toBe(true)
+  })
 })
 afterEach(() => {
   Object.assign(mapSettings, originalSettings)
@@ -153,6 +233,7 @@ describe('지도 장애 복구', () => {
     expect(screen.queryByTestId('tile-source')).not.toBeInTheDocument()
     expect(screen.getByTestId('boundary')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('지역 선택과 분석은 계속할 수 있습니다')
+    await user.click(screen.getByText(/표시된 행정동 1곳/))
     expect(screen.getByRole('button', { name: '성수2가1동' })).toHaveAttribute(
       'aria-pressed',
       'true',

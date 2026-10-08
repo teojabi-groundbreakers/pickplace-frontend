@@ -18,6 +18,7 @@ import type { ReactNode } from 'react'
 export function Layout({ children, savedCount }: { children: ReactNode; savedCount: number }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const mapWorkspace = location.pathname === '/'
   const page =
     location.pathname === '/saved'
       ? '저장한 분석'
@@ -30,7 +31,7 @@ export function Layout({ children, savedCount }: { children: ReactNode; savedCou
     { to: '/guide', icon: Compass, label: '이용 가이드' },
   ]
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${mapWorkspace ? 'map-workspace-shell' : ''}`}>
       <a
         href="#main-content"
         className="skip-link"
@@ -77,6 +78,8 @@ export function Layout({ children, savedCount }: { children: ReactNode; savedCou
               key={item.to}
               onClick={() => setMenuOpen(false)}
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              title={item.label}
+              aria-label={item.label}
             >
               <item.icon size={19} />
               <span>{item.label}</span>

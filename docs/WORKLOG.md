@@ -2,6 +2,28 @@
 
 날짜는 Asia/Seoul 기준입니다. 현재 사양은 주제 문서에서 관리하며, 이 파일에는 요청과 결정·검증을 작업별로 남깁니다.
 
+## 2026-10-08 · 002 · 지도 메인 화면·검색 오버레이·행정동 조회 구현
+
+- 요청/범위: 이슈 #1의 지도 중심 첫 화면, 상단 검색창, 우클릭 행정구역 조회. 카카오 오류 원인 점검 후 도메인 설정 확인과 독립적으로 구현 가능한 작업을 진행.
+- 변경: 홈페이지 내비게이션을 간결한 레일로 조정하고 지도를 화면 높이로 확장. `MapSearch` 지역 자동완성·키보드 선택과 기존 지역/업종 조건을 동기화. 결과를 오른쪽/하단 패널로 제공하고 닫기·다시 열기·저장·다운로드·오류/부족/로딩 처리를 유지. 가이드와 `.env.example`도 실제 흐름에 맞게 갱신.
+- 위치 조회: 카카오 `rightclick`, Leaflet `contextmenu`, 중심 위치 버튼으로 받은 좌표를 공식 `coord2RegionCode`에 전달. 행정동 H만 사용하고 목록의 유일한 코드 일치 후 사용자가 확인해 선택. 8자리 코드의 `00` 정규화, 미지원 지역 안내, 미설정·서비스 누락·오류·빈 결과·10초 타임아웃·취소·오래된 응답 무시를 구현. 배경 공급자와 조회 서비스를 분리하고 BE API 계약은 변경하지 않음.
+- 관련 구현: `src/components/MapSearch.tsx`, `AreaMap.tsx`, `KakaoMap.tsx`, `LeafletMap.tsx`, `Layout.tsx`, `SearchForm.tsx`, `src/pages/Dashboard.tsx`, `Guide.tsx`, `src/lib/catalogRegions.ts`, `regionLookup.ts`, `kakaoMaps.ts`, `src/types/map.ts`, `src/styles/map-workspace.css`, 관련 테스트.
+- 별도 결함: 카카오 정상 타일 로드 후 미세 이동 → 13초 경과 시 실패 콜백이 호출되는 기존 오탐을 회귀 테스트로 재현. 공식 문서상 해당 이동에는 `tilesloaded`가 발생하지 않을 수 있음. [이슈 #2](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/2)로 분리했으며 이 feature 브랜치에는 오탐 수정을 포함하지 않음. 실패 재현 테스트는 별도 fix 작업에서 적용하며, 정상 흐름 테스트를 삭제해 오류를 숨긴 것으로 처리하지 않음.
+- 검증: 동일 스크립트의 `npm run format`, `npm run format:check`, 전체 10개 파일·43개 테스트, `npm run lint`, `npm run build` 통과. 빌드 중 테스트 클래스의 parameter property가 `erasableSyntaxOnly`와 맞지 않아 명시적 필드 초기화로 수정 후 빌드를 다시 확인. 검색·조회·결과 패널·타입·이벤트 정리와 포맷 후 변경 코드를 직접 확인.
+- 시각 검증: Chrome에서 넓은 지도·상단 검색창·간결한 내비게이션·카카오 실패 후 기본 위치도 전환을 확인. 기본 위치도 배경과 확대/축소 컨트롤의 배치 문제를 수정. 이후 브라우저 캡처 오류가 반복되어 모바일·태블릿 및 변경 후 전체 시각 검증은 미완료.
+- 문서: `docs/MAPS.md`, `FRONTEND.md`, `README.md`, `WORKLOG.md`, `AGENTS.md`의 흐름·조회 규칙·연결 점검·제한 사항 갱신.
+- 남은 사항: 카카오 허용 도메인 등록 후 실제 지도·우클릭 조회 성공 확인, 이슈 #2 수정, 모바일·태블릿 시각 검증, 팀 리뷰·병합. 별도 worktree의 `fix/2-kakao-tile-timeout`에서 이슈 #2 수정을 구현하고 테스트 33개·포맷·린트·빌드 통과를 확인했으며 이 feature 브랜치에는 아직 포함하지 않음. 실서비스 검증 전이므로 이슈 완료·운영 배포 완료로 기록하지 않음.
+
+## 2026-10-08 · 001 · 지도 개편 사전 점검 및 카카오 연결 오류 확인
+
+- 요청/범위: 지도가 메인인 첫 화면, 상단 검색 오버레이, 우클릭 행정구역 조회. 진행 전 카카오맵 미작동 원인 확인 요청을 추가로 반영.
+- Git Flow: GitHub 기존 이슈가 없음을 확인한 뒤 [이슈 #1](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/1)을 생성하고 `etfactory`에 배정. 깨끗한 `develop`에서 `git fetch origin --prune`, `git pull --rebase origin develop`을 실행하고 기준 커밋 `5a87a15`에서 `feature/1-map-workspace`를 생성. 이전 문서의 `develop` 부재 상태를 현재 확인 결과로 갱신.
+- 카카오 진단: `VITE_MAP_PROVIDER=auto`, 키 설정 및 개발 서버 반영 여부를 값 노출 없이 확인. 두 로컬 출처의 공식 SDK 요청에서 HTTP 401·`appKeyType is REST_API_KEY`를 확인. 사용자가 JavaScript 키로 교체한 뒤 키 종류 오류는 사라졌고 HTTP 401·`domain mismatched!`로 바뀜. `http://localhost:5173`, `http://127.0.0.1:5173`의 허용 도메인 등록을 요청했으며 확인 대기 중.
+- 주요 결정: 지도 HTTP 응답과 실제 렌더링 검증을 구분. 행정동은 실제 좌표 조회의 H 결과를 사용하고 가까운 중심 마커로 추정하지 않는 구현 방향을 이슈와 [지도 문서](MAPS.md)에 기록. 설정·키 값은 문서와 이슈에 포함하지 않음.
+- 검증: `npm run test -- src/test/kakaoMaps.test.ts src/test/maps.test.tsx`로 2개 파일·9개 테스트 통과. 현재 셸에서 `pnpm`을 찾을 수 없어 동일한 저장소 스크립트를 npm으로 실행했으며 의존성·잠금 파일은 변경하지 않음. `git check-ignore -v .env`로 제외 확인, `git ls-files -ci --exclude-standard` 출력 없음.
+- 변경: `docs/MAPS.md`, `docs/README.md`, `docs/FRONTEND.md`, `AGENTS.md`, 이 작업 이력. 앱 소스는 아직 변경하지 않음.
+- 남은 사항/제약: 허용 도메인 등록 후 SDK·실제 지도 재검증, 지도 메인 화면과 행정동 조회 구현·검증. 지도 `bounds_changed` 후 타일 로드 이벤트가 발생하지 않을 때의 오탐 가능성은 추가 검토 대상이며 재현·수정 완료로 기록하지 않음. 앱 시각 검증·실제 BE 연결·운영 배포·리뷰·병합은 미완료.
+
 ## 2026-10-07 · 001 · FE 기본 구성 및 분석 화면 구현
 
 - 요청/범위: 사용자가 제시한 FE 업무 목록을 바탕으로 프로그램 기본 사항 구현.

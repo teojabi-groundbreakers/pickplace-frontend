@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { LocateFixed, Minus, Plus } from 'lucide-react'
+import { LocateFixed, MapPin, Minus, Plus } from 'lucide-react'
 import type { MapRendererProps } from '../types/map'
-import type { KakaoMap as KakaoMapInstance, KakaoMapsApi } from '../lib/kakaoMaps'
+import type { KakaoMap as KakaoMapInstance, KakaoMapsApi, KakaoMouseEvent } from '../lib/kakaoMaps'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import { mapSettings } from '../lib/mapProviders'
 
@@ -12,6 +12,8 @@ export function KakaoMap({
   disabled,
   onRegionSelect,
   onFailure,
+  onPointSelect,
+  lookupPoint,
 }: MapRendererProps) {
   const container = useRef<HTMLDivElement>(null)
   const instance = useRef<KakaoMapInstance | null>(null)
@@ -81,6 +83,15 @@ export function KakaoMap({
   }, [])
   useEffect(() => {
     const map = instance.current
+    if (!api || !map || !onPointSelect) return
+    const selectPoint = (event: KakaoMouseEvent) => {
+      onPointSelect([event.latLng.getLat(), event.latLng.getLng()])
+    }
+    api.event.addListener(map, 'rightclick', selectPoint)
+    return () => api.event.removeListener(map, 'rightclick', selectPoint)
+  }, [api, onPointSelect])
+  useEffect(() => {
+    const map = instance.current
     if (!api || !map) return
     const overlays: { setMap: (map: KakaoMapInstance | null) => void }[] = []
     try {
@@ -143,11 +154,24 @@ export function KakaoMap({
           }),
         )
       }
+      if (lookupPoint) {
+        const point = document.createElement('span')
+        point.className = 'kakao-lookup-marker'
+        overlays.push(
+          new api.CustomOverlay({
+            map,
+            content: point,
+            clickable: false,
+            position: new api.LatLng(...lookupPoint),
+            zIndex: 6,
+          }),
+        )
+      }
     } catch {
       failure.current()
     }
     return () => overlays.forEach((overlay) => overlay.setMap(null))
-  }, [api, data, regions, selectedRegionCode, disabled, onRegionSelect])
+  }, [api, data, regions, selectedRegionCode, disabled, onRegionSelect, lookupPoint])
   useEffect(() => {
     const map = instance.current
     if (!api || !map) return
@@ -216,6 +240,20 @@ export function KakaoMap({
       >
         <LocateFixed size={17} />
       </button>
+      {onPointSelect && (
+        <button
+          type="button"
+          className="map-query-center"
+          disabled={!api}
+          onClick={() => {
+            const point = instance.current?.getCenter()
+            if (point) onPointSelect([point.getLat(), point.getLng()])
+          }}
+        >
+          <MapPin size={16} />
+          중심 위치 조회
+        </button>
+      )}
     </>
   )
 }
