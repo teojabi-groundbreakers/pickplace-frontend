@@ -39,6 +39,8 @@ export function Dashboard({
 }) {
   const [searchParams] = useSearchParams()
   const [draft, setDraft] = useState<SearchSelection | null>(null)
+  const [pointRegion, setPointRegion] = useState<MapRegion | null>(null)
+  const [exploreRegion, setExploreRegion] = useState<MapRegion | null>(null)
   const scenario = searchParams.get('scenario')
   const [dismissedState, setDismissedState] = useState<AnalysisState | null>(null)
   const panelOpen = state.status !== 'idle' && dismissedState !== state
@@ -83,7 +85,23 @@ export function Dashboard({
         ) || [],
     [catalog, selection.cityCode, selection.districtCode],
   )
-  const selectedRegion = regions.find((region) => region.code === selection.regionCode)
+  const resolvedRegion = useMemo<MapRegion | null>(() => {
+    if (pointRegion?.code === selection.regionCode) return pointRegion
+    if (
+      result?.request.regionCode === selection.regionCode &&
+      /^\d{10}$/.test(selection.regionCode)
+    ) {
+      return {
+        code: result.request.regionCode,
+        name: result.regionName,
+        fullName: result.regionName,
+        center: result.map.center,
+      }
+    }
+    return null
+  }, [pointRegion, result, selection.regionCode])
+  const selectedRegion =
+    resolvedRegion || regions.find((region) => region.code === selection.regionCode)
   const city = catalog?.cities.find((item) => item.code === selection.cityCode)
   const district = city?.districts.find((item) => item.code === selection.districtCode)
   const resultMatchesSelection =
@@ -93,16 +111,21 @@ export function Dashboard({
   const displayedResult = resultMatchesSelection ? result : null
   const mapData = useMemo<MapViewData>(
     () => ({
-      center: displayedResult?.map.center ||
+      center: exploreRegion?.center ||
+        displayedResult?.map.center ||
         selectedRegion?.center ||
         regions[0]?.center || [37.5665, 126.978],
-      boundary: displayedResult?.map.boundary || [],
-      places: displayedResult?.map.places || [],
+      boundary: exploreRegion ? [] : displayedResult?.map.boundary || [],
+      places: exploreRegion ? [] : displayedResult?.map.places || [],
       regionName:
-        selectedRegion?.fullName || district?.name || city?.name || '분석할 지역을 선택하세요',
-      isDemo: displayedResult?.source === 'demo',
+        exploreRegion?.fullName ||
+        selectedRegion?.fullName ||
+        district?.name ||
+        city?.name ||
+        '분석할 지역을 선택하세요',
+      isDemo: !exploreRegion && displayedResult?.source === 'demo',
     }),
-    [displayedResult, selectedRegion, regions, district, city],
+    [displayedResult, selectedRegion, regions, district, city, exploreRegion],
   )
   const pending = state.status === 'loading'
   const beginLookup = useCallback(() => setDismissedState(state), [state])
@@ -110,6 +133,8 @@ export function Dashboard({
   const selectRegion = useCallback(
     (code: string) => {
       if (!catalog || pending) return
+      setPointRegion(null)
+      setExploreRegion(null)
       const next = selectionFromRequest(catalog, {
         regionCode: code,
         industryCode: selection.industryCode,
@@ -123,6 +148,33 @@ export function Dashboard({
     },
     [catalog, pending, selection],
   )
+
+  const changeSelection = (next: SearchSelection) => {
+    setDraft(next)
+    setPointRegion((current) => (current?.code === next.regionCode ? current : null))
+    if (
+      next.regionCode !== selection.regionCode ||
+      next.districtCode !== selection.districtCode ||
+      next.cityCode !== selection.cityCode
+    ) {
+      setExploreRegion(null)
+    }
+  }
+
+  const submitAnalysis = (request: AnalysisRequest) => {
+    if (pending) return
+    setExploreRegion(null)
+    setDismissedState(null)
+    void run(request)
+  }
+
+  const analyzeRegion = (region: MapRegion, industryCode: string) => {
+    if (!catalog || pending) return
+    const request = { regionCode: region.code, industryCode }
+    setPointRegion(region)
+    setDraft(selectionFromRequest(catalog, request))
+    submitAnalysis(request)
+  }
 
   return (
     <>
@@ -140,7 +192,22 @@ export function Dashboard({
         <AreaMap
           data={mapData}
           regions={regions}
-          lookupRegions={allRegions}
+          analysis={{
+            categories: catalog?.categories || [],
+            industryCode: selection.industryCode,
+            onIndustryChange: (industryCode) => {
+              const category = catalog?.categories.find((item) =>
+                item.industries.some((industry) => industry.code === industryCode),
+              )
+              changeSelection({ ...selection, industryCode, categoryCode: category?.code || '' })
+            },
+            onAnalyze: analyzeRegion,
+          }}
+          exploreRegion={exploreRegion}
+          onExploreRegion={(region) => {
+            setExploreRegion(region)
+            setDismissedState(state)
+          }}
           selectedRegionCode={selection.regionCode}
           disabled={pending}
           onRegionSelect={selectRegion}
@@ -152,13 +219,11 @@ export function Dashboard({
               regions={allRegions}
               selection={selection}
               initial={initial}
-              onChange={setDraft}
+              onChange={changeSelection}
               onRegionSelect={selectRegion}
               pending={pending}
-              onSubmit={(request) => {
-                setDismissedState(null)
-                void run(request)
-              }}
+              onSubmit={submitAnalysis}
+              resolvedRegion={resolvedRegion}
             />
           ) : (
             <div className="map-search-overlay">
@@ -224,7 +289,7 @@ export function Dashboard({
         {state.status === 'empty' && (
           <EmptyState
             title="아직 데이터가 충분하지 않아요"
-            message="신뢰할 수 있는 분석을 위해 더 많은 데이터가 필요합니다. 다른 행정동이나 업종을 선택해 보세요."
+            message={state.message}
           />
         )}
         {result && (

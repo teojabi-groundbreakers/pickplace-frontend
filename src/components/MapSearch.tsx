@@ -16,6 +16,7 @@ export function MapSearch({
   onChange,
   onRegionSelect,
   onSubmit,
+  resolvedRegion,
 }: {
   catalog: Catalog
   regions: MapRegion[]
@@ -25,6 +26,7 @@ export function MapSearch({
   onChange: (selection: SearchSelection) => void
   onRegionSelect: (code: string) => void
   onSubmit: (request: AnalysisRequest) => void
+  resolvedRegion?: MapRegion | null
 }) {
   const id = useId()
   const [query, setQuery] = useState('')
@@ -32,7 +34,9 @@ export function MapSearch({
   const [activeIndex, setActiveIndex] = useState(-1)
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
-  const selected = regions.find((region) => region.code === selection.regionCode)
+  const selected =
+    (resolvedRegion?.code === selection.regionCode ? resolvedRegion : null) ||
+    regions.find((region) => region.code === selection.regionCode)
   const industry = catalog.categories
     .flatMap((category) => category.industries)
     .find((item) => item.code === selection.industryCode)
@@ -54,7 +58,7 @@ export function MapSearch({
     setError('')
   }
   const submit = (request: AnalysisRequest) => {
-    const message = validateSelection(request, catalog)
+    const message = validateSelection(request, catalog, resolvedRegion?.code)
     setError(message || '')
     if (!message) {
       setExpanded(false)
@@ -213,6 +217,7 @@ export function MapSearch({
           }}
           pending={pending}
           onSubmit={submit}
+          resolvedRegion={resolvedRegion}
         />
       </div>
       {error && (

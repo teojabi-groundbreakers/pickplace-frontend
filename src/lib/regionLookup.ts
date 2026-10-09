@@ -3,6 +3,7 @@ import type { KakaoRegionResult } from './kakaoMaps'
 import type { MapRegion } from '../types/map'
 
 export function findSupportedRegion(regions: MapRegion[], code: string): MapRegion | null {
+  // Match demo fixtures only; never use this list to gate a backend analysis request.
   // The demo catalog uses 8-digit administrative codes; Kakao returns 10 digits.
   const matches = regions.filter((region) => {
     const normalized = /^\d{8}$/.test(region.code) ? `${region.code}00` : region.code

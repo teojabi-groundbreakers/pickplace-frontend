@@ -10,7 +10,7 @@ import {
   nextMapProvider,
 } from '../lib/mapProviders'
 import type { MapRendererProps } from '../types/map'
-import { createDemoAnalysis, defaultRequest } from '../data/demo'
+import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
 import type { KakaoRegionResult } from '../lib/kakaoMaps'
 
 const lookup = vi.hoisted(() => vi.fn())
@@ -23,6 +23,7 @@ const tiles = vi.hoisted(() => ({
   handlers: null as Record<string, () => void> | null,
   immediateSuccess: false,
   contextmenu: null as ((event: { latlng: { lat: number; lng: number } }) => void) | null,
+  setView: vi.fn(),
 }))
 vi.mock('react-leaflet', async () => {
   const { useEffect } = await import('react')
@@ -30,7 +31,8 @@ vi.mock('react-leaflet', async () => {
     invalidateSize: vi.fn(),
     getContainer: () => document.createElement('div'),
     fitBounds: vi.fn(),
-    setView: vi.fn(),
+    setView: tiles.setView,
+    getZoom: () => 14,
     getCenter: () => ({ lat: 37.54, lng: 127.05 }),
   }
   return {
@@ -90,11 +92,22 @@ const props = {
   ],
   selectedRegionCode: defaultRequest.regionCode,
   onRegionSelect: vi.fn(),
+  onExploreRegion: vi.fn(),
+  analysis: {
+    categories: demoCatalog.categories,
+    industryCode: defaultRequest.industryCode,
+    onIndustryChange: vi.fn(),
+    onAnalyze: vi.fn(),
+  },
 }
 beforeEach(() => {
   lookup.mockReset()
   props.onRegionSelect.mockClear()
+  props.onExploreRegion.mockClear()
+  props.analysis.onIndustryChange.mockClear()
+  props.analysis.onAnalyze.mockClear()
   tiles.immediateSuccess = false
+  tiles.setView.mockClear()
   Object.assign(mapSettings, originalSettings, {
     preferred: 'osm',
     kakaoAppKey: '',
@@ -120,26 +133,101 @@ const administrative: KakaoRegionResult = {
 }
 
 describe('지도 위치의 행정구역 조회', () => {
-  it('우클릭한 실제 좌표를 조회하고 확인 후 지원 지역만 선택한다', async () => {
+  it('둘러보기 좌표를 우선 확대하고 이전 분석 경계에 맞춰 돌아가지 않는다', () => {
+    const region = {
+      code: '1117065000',
+      name: '이태원1동',
+      fullName: '서울특별시 용산구 이태원1동',
+      center: [37.53213, 126.99267] as [number, number],
+    }
+    render(
+      <AreaMap
+        {...props}
+        exploreRegion={region}
+      />,
+    )
+    expect(tiles.setView).toHaveBeenLastCalledWith(region.center, 17)
+    expect(props.analysis.onAnalyze).not.toHaveBeenCalled()
+  })
+
+  it('우클릭한 행정동 코드와 선택 업종으로 분석하며 지역 선택 버튼을 대체한다', async () => {
     lookup.mockResolvedValue(administrative)
     const user = userEvent.setup()
-    render(<AreaMap {...props} />)
+    const view = render(<AreaMap {...props} />)
     await act(async () => tiles.contextmenu?.({ latlng: { lat: 37.54, lng: 127.05 } }))
     expect(lookup).toHaveBeenCalledWith([37.54, 127.05], '', expect.any(AbortSignal))
     expect(screen.getByText(administrative.address_name)).toBeInTheDocument()
     expect(props.onRegionSelect).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: '이 지역 선택' }))
-    expect(props.onRegionSelect).toHaveBeenCalledWith(defaultRequest.regionCode)
+    expect(screen.getByLabelText('분석할 업종')).toHaveValue('coffee')
+    await user.selectOptions(screen.getByLabelText('분석할 업종'), 'beauty')
+    expect(props.analysis.onIndustryChange).toHaveBeenCalledWith('beauty')
+    view.rerender(
+      <AreaMap
+        {...props}
+        analysis={{ ...props.analysis, industryCode: 'beauty' }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
+    expect(props.analysis.onAnalyze).toHaveBeenCalledWith(
+      {
+        code: administrative.code,
+        name: administrative.region_3depth_name,
+        fullName: administrative.address_name,
+        center: [37.54, 127.05],
+      },
+      'beauty',
+    )
+    expect(props.onRegionSelect).not.toHaveBeenCalled()
     expect(screen.queryByRole('region', { name: '행정구역 조회' })).not.toBeInTheDocument()
   })
 
-  it('지원하지 않는 지역도 조회 결과를 표시하지만 분석 조건으로 선택하지 않는다', async () => {
-    lookup.mockResolvedValue({ ...administrative, code: '9999999999' })
+  it('지역 목록에 없는 행정동도 분석 가능하며 둘러보기는 분석 호출 없이 위치를 전달한다', async () => {
+    const external = {
+      ...administrative,
+      code: '1117065000',
+      address_name: '서울특별시 용산구 이태원1동',
+    }
+    lookup.mockResolvedValue(external)
     const user = userEvent.setup()
     render(<AreaMap {...props} />)
     await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
-    expect(await screen.findByText(/지원하지 않는 지역/)).toBeInTheDocument()
+    expect(await screen.findByText(external.address_name)).toBeInTheDocument()
+    expect(screen.queryByText(/지원하지 않는 지역/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '이 지역 분석' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: '이 지역 선택' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '이 지역 둘러보기' }))
+    expect(props.onExploreRegion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: external.code,
+        center: [37.54, 127.05],
+      }),
+    )
+    expect(props.analysis.onAnalyze).not.toHaveBeenCalled()
+    expect(props.onRegionSelect).not.toHaveBeenCalled()
+    expect(screen.queryByRole('region', { name: '행정구역 조회' })).not.toBeInTheDocument()
+  })
+
+  it('업종 미선택 분석을 차단하고 업종 목록 오류 중에도 둘러보기를 제공한다', async () => {
+    lookup.mockResolvedValue(administrative)
+    const user = userEvent.setup()
+    const view = render(
+      <AreaMap
+        {...props}
+        analysis={{ ...props.analysis, industryCode: '' }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
+    await user.click(await screen.findByRole('button', { name: '이 지역 분석' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('분석할 업종')
+    expect(props.analysis.onAnalyze).not.toHaveBeenCalled()
+    view.rerender(
+      <AreaMap
+        {...props}
+        analysis={{ ...props.analysis, categories: [] }}
+      />,
+    )
+    expect(screen.getByRole('button', { name: '이 지역 분석' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '이 지역 둘러보기' })).toBeEnabled()
   })
 
   it('이전 조회 응답은 최신 위치를 덮어쓰지 않으며 닫으면 요청을 취소한다', async () => {

@@ -15,6 +15,7 @@ export function KakaoMap({
   onFailure,
   onPointSelect,
   lookupPoint,
+  exploreRegion,
 }: MapRendererProps) {
   const container = useRef<HTMLDivElement>(null)
   const instance = useRef<KakaoMapInstance | null>(null)
@@ -183,6 +184,11 @@ export function KakaoMap({
     const map = instance.current
     if (!api || !map) return
     try {
+      if (exploreRegion) {
+        map.setCenter(new api.LatLng(...exploreRegion.center))
+        map.setLevel(Math.min(map.getLevel(), 3))
+        return
+      }
       if (data.boundary.length >= 3 || (!selectedRegionCode && regions.length > 1)) {
         const bounds = new api.LatLngBounds()
         const points =
@@ -196,7 +202,7 @@ export function KakaoMap({
     } catch {
       failure.current()
     }
-  }, [api, data.center, data.boundary, regions, selectedRegionCode])
+  }, [api, data.center, data.boundary, regions, selectedRegionCode, exploreRegion])
   const recenter = () => {
     if (api) {
       instance.current?.setCenter(new api.LatLng(...data.center))

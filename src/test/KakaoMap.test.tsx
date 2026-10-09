@@ -8,6 +8,7 @@ const sdk = vi.hoisted(() => ({
   handlers: new Map<string, (event?: KakaoMouseEvent) => void>(),
   level: 5,
   setLevel: vi.fn(),
+  setCenter: vi.fn(),
   project: vi.fn(),
 }))
 vi.mock('../lib/kakaoMaps', () => ({ loadKakaoMaps: sdk.load }))
@@ -46,6 +47,7 @@ beforeEach(() => {
   props.onPointSelect.mockClear()
   sdk.handlers.clear()
   sdk.level = 5
+  sdk.setCenter.mockClear()
   sdk.setLevel.mockReset().mockImplementation((level: number) => {
     sdk.level = level
   })
@@ -65,7 +67,7 @@ beforeEach(() => {
       getCenter() {
         return new LatLng(37.55, 127.06)
       }
-      setCenter() {}
+      setCenter = sdk.setCenter
       setLevel = sdk.setLevel
       getLevel() {
         return sdk.level
@@ -117,6 +119,33 @@ function wheel(target: HTMLElement, options: WheelEventInit) {
   return event
 }
 describe('카카오 지도 이벤트와 상태', () => {
+  it('둘러보기는 클릭 위치로 확대하고 이미 더 확대된 배율은 유지한다', async () => {
+    const view = await mount()
+    const region = {
+      code: '1117065000',
+      name: '이태원1동',
+      fullName: '서울특별시 용산구 이태원1동',
+      center: [37.53213, 126.99267] as [number, number],
+    }
+    view.rerender(
+      <KakaoMap
+        {...props}
+        exploreRegion={region}
+      />,
+    )
+    expect(sdk.setCenter).toHaveBeenLastCalledWith(new LatLng(...region.center))
+    expect(sdk.level).toBe(3)
+    sdk.level = 2
+    view.rerender(
+      <KakaoMap
+        {...props}
+        exploreRegion={{ ...region }}
+      />,
+    )
+    expect(sdk.level).toBe(2)
+    expect(props.onPointSelect).not.toHaveBeenCalled()
+  })
+
   it('작은 트랙패드 입력을 누적해 포인터 위치 기준으로 확대하고 페이지 스크롤을 막는다', async () => {
     await mount()
     const map = screen.getByRole('region', { name: '성수동 카카오지도' })

@@ -23,7 +23,11 @@ function Viewport({
   selectedRegionCode,
   maxZoom,
   onPointSelect,
-}: Pick<MapRendererProps, 'data' | 'regions' | 'selectedRegionCode' | 'onPointSelect'> & {
+  exploreRegion,
+}: Pick<
+  MapRendererProps,
+  'data' | 'regions' | 'selectedRegionCode' | 'onPointSelect' | 'exploreRegion'
+> & {
   maxZoom: number
 }) {
   const map = useMapEvents({
@@ -35,7 +39,9 @@ function Viewport({
     return () => observer.disconnect()
   }, [map])
   useEffect(() => {
-    if (data.boundary.length >= 3)
+    if (exploreRegion)
+      map.setView(exploreRegion.center, Math.min(Math.max(map.getZoom(), 17), maxZoom))
+    else if (data.boundary.length >= 3)
       map.fitBounds(data.boundary, { padding: [50, 50], maxZoom: Math.min(15, maxZoom) })
     else if (!selectedRegionCode && regions.length > 1)
       map.fitBounds(
@@ -43,7 +49,7 @@ function Viewport({
         { padding: [60, 60], maxZoom: Math.min(13, maxZoom) },
       )
     else map.setView(data.center, Math.min(14, maxZoom))
-  }, [map, data.center, data.boundary, regions, selectedRegionCode, maxZoom])
+  }, [map, data.center, data.boundary, regions, selectedRegionCode, maxZoom, exploreRegion])
   return (
     <>
       <button
@@ -127,6 +133,7 @@ export function LeafletMap({
   provider,
   onPointSelect,
   lookupPoint,
+  exploreRegion,
 }: MapRendererProps & { provider: MapProvider }) {
   return (
     <MapContainer
@@ -220,6 +227,7 @@ export function LeafletMap({
         selectedRegionCode={selectedRegionCode}
         maxZoom={provider.maxZoom}
         onPointSelect={onPointSelect}
+        exploreRegion={exploreRegion}
       />
     </MapContainer>
   )

@@ -2,6 +2,8 @@ import type { Analysis, AnalysisRequest, Catalog, DemoScenario } from '../types/
 import { createDemoAnalysis, demoCatalog } from '../data/demo'
 import { config } from './config'
 import { isAnalysis, isCatalog } from './validation'
+import { catalogRegions } from './catalogRegions'
+import { findSupportedRegion } from './regionLookup'
 
 export class ApiError extends Error {
   status: number
@@ -101,7 +103,19 @@ export async function analyze(
       throw new ApiError('일시적으로 분석 서버에 연결할 수 없습니다.', 503, 'SERVER_ERROR')
     }
 
-    return createDemoAnalysis(request)
+    const region = findSupportedRegion(
+      catalogRegions(demoCatalog),
+      /^\d{8}$/.test(request.regionCode) ? `${request.regionCode}00` : request.regionCode,
+    )
+    if (!region) {
+      throw new ApiError(
+        '이 지역은 데모 분석 데이터가 없습니다. 실제 분석은 백엔드 연결 후 사용할 수 있어요.',
+        422,
+        'INSUFFICIENT_DATA',
+      )
+    }
+    const result = createDemoAnalysis({ ...request, regionCode: region.code })
+    return { ...result, request: { ...request } }
   }
 
   const result = await requestJson('/analyses', isAnalysis, {

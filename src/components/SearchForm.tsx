@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, Coffee, MapPin, Search, LoaderCircle } from 'lucide-react'
 import type { AnalysisRequest, Catalog, Option } from '../types/analysis'
 import type { SearchSelection } from '../lib/selection'
+import type { MapRegion } from '../types/map'
 import { selectionFromRequest } from '../lib/selection'
 import { Button } from './ui'
 import { validateSelection } from '../lib/validation'
@@ -57,6 +58,7 @@ export function SearchForm({
   onChange,
   onSubmit,
   compact = false,
+  resolvedRegion,
 }: {
   catalog: Catalog
   initial: AnalysisRequest
@@ -65,6 +67,7 @@ export function SearchForm({
   onChange?: (selection: SearchSelection) => void
   onSubmit: (request: AnalysisRequest) => void
   compact?: boolean
+  resolvedRegion?: MapRegion | null
 }) {
   const [localSelection, setLocalSelection] = useState(() => selectionFromRequest(catalog, initial))
   const selection = value || localSelection
@@ -89,7 +92,7 @@ export function SearchForm({
       onSubmit={(event) => {
         event.preventDefault()
         const request = { regionCode, industryCode }
-        const message = validateSelection(request, catalog)
+        const message = validateSelection(request, catalog, resolvedRegion?.code)
         setError(message || '')
         if (!message) onSubmit(request)
       }}
@@ -109,26 +112,39 @@ export function SearchForm({
             <MapPin size={17} />
             분석 지역
           </div>
-          <div className="filter-selects">
-            <Select
-              label="시·도"
-              value={cityCode}
-              options={catalog.cities}
-              onChange={(code) => update({ cityCode: code, districtCode: '', regionCode: '' })}
-            />
-            <Select
-              label="시·군·구"
-              value={districtCode}
-              options={city?.districts || []}
-              onChange={(code) => update({ districtCode: code, regionCode: '' })}
-            />
-            <Select
-              label="행정동"
-              value={regionCode}
-              options={district?.neighborhoods || []}
-              onChange={(code) => update({ regionCode: code })}
-            />
-          </div>
+          {resolvedRegion?.code === regionCode ? (
+            <div className="resolved-region-selection">
+              <strong>{resolvedRegion.fullName}</strong>
+              <span>지도에서 조회한 행정동 · {resolvedRegion.code}</span>
+              <button
+                type="button"
+                onClick={() => update({ cityCode: '', districtCode: '', regionCode: '' })}
+              >
+                지역 다시 선택
+              </button>
+            </div>
+          ) : (
+            <div className="filter-selects">
+              <Select
+                label="시·도"
+                value={cityCode}
+                options={catalog.cities}
+                onChange={(code) => update({ cityCode: code, districtCode: '', regionCode: '' })}
+              />
+              <Select
+                label="시·군·구"
+                value={districtCode}
+                options={city?.districts || []}
+                onChange={(code) => update({ districtCode: code, regionCode: '' })}
+              />
+              <Select
+                label="행정동"
+                value={regionCode}
+                options={district?.neighborhoods || []}
+                onChange={(code) => update({ regionCode: code })}
+              />
+            </div>
+          )}
         </div>
         <span className="filter-divider" />
         <div className="filter-group industry-filter">

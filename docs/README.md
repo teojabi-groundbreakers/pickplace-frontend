@@ -21,7 +21,8 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 - 기본 실행은 데모 모드이며 수치·평가·진단·분석 경계·시설 마커는 예시 데이터다.
 - 지도 메인 화면·상단 검색 오버레이·우클릭 행정동 조회는 [Draft PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3), 카카오 미세 이동 후 타임아웃 오탐 수정은 별도 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)에 올렸다. 두 PR 모두 대상은 `develop`이며 추가 시각 검증·리뷰·병합은 대기 중이다. 현재 feature 브랜치에는 별도 fix 코드가 포함되지 않는다.
 - 카카오 SDK의 키 종류·허용 도메인 오류 이후 두 로컬 출처에서 SDK HTTP 200을 확인했다. `localhost:5173`에서 실제 도로지도·우클릭과 중심 위치의 행정동 조회 성공을 확인했고, 사용자가 드래그·더블클릭 정상 동작을 확인했다. 트랙패드 휠이 페이지 입력으로 처리되는 보고에 따라 지도 전용 휠 보정을 추가했다. 이전 축척 변화만으로 휠 정상 동작을 확정한 판정은 철회했으며 실제 트랙패드 재확인은 대기 중이다. [지도 조작](MAPS.md#카카오-지도-조작), 모바일 시각 검증·BE 연결·운영 배포의 제한을 확인한다.
-- 데모 연남동의 코드 불일치로 실제 좌표 조회 후 지역 선택이 제한되는 문제는 [이슈 #5](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/5)에서 별도로 처리한다.
+- 2026-10-09 우클릭 카드의 지역 목록 검사를 제거하고 업종 선택 후 ‘이 지역 분석’·분석 호출 없는 ‘이 지역 둘러보기’를 추가했다. 실제 API 모드는 조회된 10자리 H 코드를 그대로 전달하며 BE 수용·실제 연결은 미검증이다. 카카오 둘러보기 확대와 점포명 표시는 데스크톱에서 확인했다. [상세 흐름](MAPS.md#지도-위치의-행정동-조회와-분석둘러보기)을 따른다.
+- 데모 코드 불일치는 연남동 [이슈 #5](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/5), 성수2가1동 [이슈 #6](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/6)에서 별도로 처리한다. 실제 분석 요청을 FE 데모 목록으로 차단하지 않는다.
 - API 문서는 BE와 확정 전인 계약 초안이다.
 
 최신 작업 내용과 검증 시점은 [작업 이력](WORKLOG.md)에서 확인합니다. 구현 상태가 바뀌면 이 문서와 해당 주제 문서를 함께 갱신합니다.

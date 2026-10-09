@@ -7,13 +7,14 @@ import {
   mapSettings,
   nextMapProvider,
 } from '../lib/mapProviders'
-import { findSupportedRegion, lookupAdministrativeRegion } from '../lib/regionLookup'
+import { lookupAdministrativeRegion } from '../lib/regionLookup'
 import type { KakaoRegionResult } from '../lib/kakaoMaps'
 import type { MapProviderId } from '../lib/mapProviders'
-import type { MapRegion, MapViewData } from '../types/map'
+import type { MapRegion, MapViewData, RegionAnalysisOptions } from '../types/map'
 import type { MapPlace } from '../types/analysis'
 import { LeafletMap } from './LeafletMap'
 import { KakaoMap } from './KakaoMap'
+import { RegionLookupActions } from './RegionLookupActions'
 
 const layers = [
   { key: 'competitor' as const, label: '동종 점포', color: '#49755d' },
@@ -27,7 +28,9 @@ export function AreaMap({
   selectedRegionCode,
   disabled,
   onRegionSelect,
-  lookupRegions = regions,
+  analysis,
+  exploreRegion,
+  onExploreRegion,
   children,
   onLookupStart,
 }: {
@@ -36,7 +39,9 @@ export function AreaMap({
   selectedRegionCode: string
   disabled?: boolean
   onRegionSelect: (code: string) => void
-  lookupRegions?: MapRegion[]
+  analysis: RegionAnalysisOptions
+  exploreRegion?: MapRegion | null
+  onExploreRegion: (region: MapRegion) => void
   children?: ReactNode
   onLookupStart?: () => void
 }) {
@@ -76,9 +81,6 @@ export function AreaMap({
     },
     [onLookupStart],
   )
-  const supportedRegion = lookup?.region
-    ? findSupportedRegion(lookupRegions, lookup.region.code)
-    : null
   const providers = useMemo(() => getMapProviders(), [])
   const [source, setSource] = useState(() => ({
     provider: initialMapProvider(providers),
@@ -123,6 +125,7 @@ export function AreaMap({
     onFailure: handleFailure,
     onPointSelect: queryPoint,
     lookupPoint: lookup?.point,
+    exploreRegion,
   }
 
   return (
@@ -175,9 +178,13 @@ export function AreaMap({
         <span className="map-label">
           {data.regionName}
           <small>
-            {data.isDemo
-              ? '분석 경계·시설 마커는 예시입니다'
-              : '행정동 표시를 눌러 지역을 선택하세요'}
+            {exploreRegion
+              ? active.id === 'schematic'
+                ? '기본 위치도에서는 실제 점포를 볼 수 없어요'
+                : '주변 점포명과 시설을 지도에서 살펴보세요'
+              : data.isDemo
+                ? '분석 경계·시설 마커는 예시입니다'
+                : '행정동 표시를 눌러 지역을 선택하세요'}
           </small>
         </span>
         {active.id === 'schematic' && (
@@ -218,25 +225,34 @@ export function AreaMap({
               <>
                 <strong>{lookup.region.address_name}</strong>
                 <p>행정동 코드 {lookup.region.code}</p>
-                {!supportedRegion && <p>현재 분석 목록에서 지원하지 않는 지역입니다.</p>}
               </>
             )}
           </div>
           <small>
             위도 {lookup.point[0].toFixed(5)} · 경도 {lookup.point[1].toFixed(5)}
           </small>
-          {supportedRegion && (
-            <button
-              type="button"
-              className="button button-primary"
+          {lookup.region && (
+            <RegionLookupActions
+              key={`${lookup.region.code}-${lookup.point.join(',')}`}
+              region={{
+                code: lookup.region.code,
+                name: lookup.region.region_3depth_name,
+                fullName: lookup.region.address_name,
+                center: lookup.point,
+              }}
+              analysis={{
+                ...analysis,
+                onAnalyze: (region, industryCode) => {
+                  analysis.onAnalyze(region, industryCode)
+                  setLookup(null)
+                },
+              }}
               disabled={disabled}
-              onClick={() => {
-                onRegionSelect(supportedRegion.code)
+              onExplore={(region) => {
+                onExploreRegion(region)
                 setLookup(null)
               }}
-            >
-              이 지역 선택
-            </button>
+            />
           )}
           {lookup.status === 'error' && (
             <button
