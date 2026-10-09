@@ -10,6 +10,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Saved } from './pages/Saved'
 import { Guide } from './pages/Guide'
 import './App.css'
+import './styles/map-workspace.css'
 
 function Workspace() {
   const navigate = useNavigate()

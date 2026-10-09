@@ -1,11 +1,20 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Layers, RotateCcw } from 'lucide-react'
-import { getMapProviders, initialMapProvider, nextMapProvider } from '../lib/mapProviders'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Layers, MapPin, RotateCcw, X } from 'lucide-react'
+import {
+  getMapProviders,
+  initialMapProvider,
+  mapSettings,
+  nextMapProvider,
+} from '../lib/mapProviders'
+import { lookupAdministrativeRegion } from '../lib/regionLookup'
+import type { KakaoRegionResult } from '../lib/kakaoMaps'
 import type { MapProviderId } from '../lib/mapProviders'
-import type { MapRegion, MapViewData } from '../types/map'
+import type { MapRegion, MapViewData, RegionAnalysisOptions } from '../types/map'
 import type { MapPlace } from '../types/analysis'
 import { LeafletMap } from './LeafletMap'
 import { KakaoMap } from './KakaoMap'
+import { RegionLookupActions } from './RegionLookupActions'
 
 const layers = [
   { key: 'competitor' as const, label: '동종 점포', color: '#49755d' },
@@ -19,13 +28,59 @@ export function AreaMap({
   selectedRegionCode,
   disabled,
   onRegionSelect,
+  analysis,
+  exploreRegion,
+  onExploreRegion,
+  children,
+  onLookupStart,
 }: {
   data: MapViewData
   regions: MapRegion[]
   selectedRegionCode: string
   disabled?: boolean
   onRegionSelect: (code: string) => void
+  analysis: RegionAnalysisOptions
+  exploreRegion?: MapRegion | null
+  onExploreRegion: (region: MapRegion) => void
+  children?: ReactNode
+  onLookupStart?: () => void
 }) {
+  const request = useRef<AbortController | null>(null)
+  const [lookup, setLookup] = useState<{
+    point: [number, number]
+    status: 'loading' | 'success' | 'empty' | 'error'
+    region?: KakaoRegionResult
+    message?: string
+  } | null>(null)
+  useEffect(() => () => request.current?.abort(), [])
+  const queryPoint = useCallback(
+    async (point: [number, number]) => {
+      onLookupStart?.()
+      request.current?.abort()
+      const controller = new AbortController()
+      request.current = controller
+      setLookup({ point, status: 'loading' })
+      try {
+        const region = await lookupAdministrativeRegion(
+          point,
+          mapSettings.kakaoAppKey,
+          controller.signal,
+        )
+        if (!controller.signal.aborted) {
+          setLookup(region ? { point, status: 'success', region } : { point, status: 'empty' })
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setLookup({
+            point,
+            status: 'error',
+            message: error instanceof Error ? error.message : '행정구역 조회에 실패했어요.',
+          })
+        }
+      }
+    },
+    [onLookupStart],
+  )
   const providers = useMemo(() => getMapProviders(), [])
   const [source, setSource] = useState(() => ({
     provider: initialMapProvider(providers),
@@ -68,18 +123,17 @@ export function AreaMap({
     disabled,
     onRegionSelect,
     onFailure: handleFailure,
+    onPointSelect: queryPoint,
+    lookupPoint: lookup?.point,
+    exploreRegion,
   }
 
   return (
     <section
-      className="panel map-panel map-explorer"
+      className="map-panel map-explorer map-canvas"
       aria-label="지역 탐색 지도"
     >
-      <div className="panel-header">
-        <div className="map-explorer-title">
-          <span className="step-chip">01</span>
-          <h2>지도에서 시작해 보세요</h2>
-        </div>
+      <div className="map-provider-toolbar">
         <label className="map-provider-select">
           <Layers size={15} />
           <span className="sr-only">배경지도 선택</span>
@@ -124,15 +178,92 @@ export function AreaMap({
         <span className="map-label">
           {data.regionName}
           <small>
-            {data.isDemo
-              ? '분석 경계·시설 마커는 예시입니다'
-              : '행정동 표시를 눌러 지역을 선택하세요'}
+            {exploreRegion
+              ? active.id === 'schematic'
+                ? '기본 위치도에서는 실제 점포를 볼 수 없어요'
+                : '주변 점포명과 시설을 지도에서 살펴보세요'
+              : data.isDemo
+                ? '분석 경계·시설 마커는 예시입니다'
+                : '행정동 표시를 눌러 지역을 선택하세요'}
           </small>
         </span>
         {active.id === 'schematic' && (
           <span className="schematic-label">기본 위치도 · 실제 도로지도 아님</span>
         )}
       </div>
+      {children}
+      {lookup && (
+        <section
+          className="map-region-lookup"
+          aria-label="행정구역 조회"
+        >
+          <div className="lookup-heading">
+            <span>
+              <MapPin size={16} />이 위치의 행정구역
+            </span>
+            <button
+              type="button"
+              aria-label="행정구역 조회 닫기"
+              onClick={() => {
+                request.current?.abort()
+                setLookup(null)
+              }}
+            >
+              <X size={17} />
+            </button>
+          </div>
+          <div
+            role="status"
+            aria-live="polite"
+          >
+            {lookup.status === 'loading' && <p>행정동을 확인하고 있어요…</p>}
+            {lookup.status === 'empty' && (
+              <p>이 위치의 행정동을 찾지 못했어요. 다른 위치를 선택해 주세요.</p>
+            )}
+            {lookup.status === 'error' && <p>{lookup.message}</p>}
+            {lookup.region && (
+              <>
+                <strong>{lookup.region.address_name}</strong>
+                <p>행정동 코드 {lookup.region.code}</p>
+              </>
+            )}
+          </div>
+          <small>
+            위도 {lookup.point[0].toFixed(5)} · 경도 {lookup.point[1].toFixed(5)}
+          </small>
+          {lookup.region && (
+            <RegionLookupActions
+              key={`${lookup.region.code}-${lookup.point.join(',')}`}
+              region={{
+                code: lookup.region.code,
+                name: lookup.region.region_3depth_name,
+                fullName: lookup.region.address_name,
+                center: lookup.point,
+              }}
+              analysis={{
+                ...analysis,
+                onAnalyze: (region, industryCode) => {
+                  analysis.onAnalyze(region, industryCode)
+                  setLookup(null)
+                },
+              }}
+              disabled={disabled}
+              onExplore={(region) => {
+                onExploreRegion(region)
+                setLookup(null)
+              }}
+            />
+          )}
+          {lookup.status === 'error' && (
+            <button
+              type="button"
+              onClick={() => void queryPoint(lookup.point)}
+            >
+              행정구역 다시 조회
+            </button>
+          )}
+        </section>
+      )}
       {source.recovery && (
         <div
           className="map-recovery"
@@ -165,7 +296,7 @@ export function AreaMap({
         <span className="map-selection-hint">
           {data.places.length > 0
             ? '분석 지역의 시설 레이어'
-            : '행정동 표시를 눌러 분석할 지역을 선택하세요.'}
+            : '우클릭으로 행정동 조회 · 모바일에서는 중심 위치 조회'}
         </span>
         {data.places.length > 0 && (
           <div className="map-layers">
@@ -189,21 +320,24 @@ export function AreaMap({
         )}
       </div>
       {regions.length > 0 && (
-        <div
-          className="map-region-list"
-          aria-label="지도에 표시된 행정동"
-        >
-          {regions.map((region) => (
-            <button
-              key={region.code}
-              disabled={disabled}
-              aria-pressed={region.code === selectedRegionCode}
-              onClick={() => onRegionSelect(region.code)}
-            >
-              {region.name}
-            </button>
-          ))}
-        </div>
+        <details className="map-region-drawer">
+          <summary>표시된 행정동 {regions.length}곳</summary>
+          <div
+            className="map-region-list"
+            aria-label="지도에 표시된 행정동"
+          >
+            {regions.map((region) => (
+              <button
+                key={region.code}
+                disabled={disabled}
+                aria-pressed={region.code === selectedRegionCode}
+                onClick={() => onRegionSelect(region.code)}
+              >
+                {region.name}
+              </button>
+            ))}
+          </div>
+        </details>
       )}
     </section>
   )

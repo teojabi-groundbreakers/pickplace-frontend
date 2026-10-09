@@ -6,24 +6,55 @@ export interface KakaoLatLng {
 export interface KakaoBounds {
   extend(point: KakaoLatLng): void
 }
+interface KakaoPoint {
+  x: number
+  y: number
+}
 export interface KakaoMap {
+  getCenter(): KakaoLatLng
   setCenter(point: KakaoLatLng): void
-  setLevel(level: number): void
+  setLevel(
+    level: number,
+    options?: { anchor?: KakaoLatLng; animate?: boolean | { duration?: number } },
+  ): void
   getLevel(): number
+  getProjection(): {
+    coordsFromContainerPoint(point: KakaoPoint): KakaoLatLng
+  }
   setBounds(bounds: KakaoBounds, top?: number, right?: number, bottom?: number, left?: number): void
   relayout(): void
+}
+export interface KakaoRegionResult {
+  region_type: 'H' | 'B'
+  code: string
+  address_name: string
+  region_1depth_name: string
+  region_2depth_name: string
+  region_3depth_name: string
+}
+
+export interface KakaoMouseEvent {
+  latLng: KakaoLatLng
 }
 interface KakaoLayer {
   setMap(map: KakaoMap | null): void
 }
+
+interface KakaoMapOptions {
+  center: KakaoLatLng
+  level: number
+  draggable: boolean
+  scrollwheel: boolean
+  disableDoubleClick: boolean
+  disableDoubleClickZoom: boolean
+}
+
 export interface KakaoMapsApi {
   load(callback: () => void): void
   LatLng: new (lat: number, lng: number) => KakaoLatLng
+  Point: new (x: number, y: number) => KakaoPoint
   LatLngBounds: new () => KakaoBounds
-  Map: new (
-    element: HTMLElement,
-    options: { center: KakaoLatLng; level: number; scrollwheel: boolean },
-  ) => KakaoMap
+  Map: new (element: HTMLElement, options: KakaoMapOptions) => KakaoMap
   CustomOverlay: new (options: {
     map: KakaoMap
     position: KakaoLatLng
@@ -42,8 +73,17 @@ export interface KakaoMapsApi {
     fillOpacity: number
   }) => KakaoLayer
   event: {
-    addListener(target: KakaoMap, type: string, callback: () => void): void
-    removeListener(target: KakaoMap, type: string, callback: () => void): void
+    addListener(target: KakaoMap, type: string, callback: (event: KakaoMouseEvent) => void): void
+    removeListener(target: KakaoMap, type: string, callback: (event: KakaoMouseEvent) => void): void
+  }
+  services?: {
+    Geocoder: new () => {
+      coord2RegionCode(
+        longitude: number,
+        latitude: number,
+        callback: (results: KakaoRegionResult[], status: string) => void,
+      ): void
+    }
   }
 }
 
@@ -74,7 +114,7 @@ export function loadKakaoMaps(appKey: string): Promise<KakaoMapsApi> {
       }
     }
     const timer = setTimeout(() => finish(), 10_000)
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false&libraries=services`
     script.async = true
     script.onload = () => {
       if (!window.kakao?.maps?.load) {

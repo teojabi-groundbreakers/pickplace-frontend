@@ -84,6 +84,21 @@ describe('API 계약 및 오류 처리', () => {
     expect(await cancelled).toMatchObject({ name: 'AbortError' })
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('데모 모드에서도 조회한 10자리 코드를 보존하며 예시 없는 지역은 데이터 부족으로 처리한다', async () => {
+    config.demoMode = true
+    vi.useFakeTimers()
+    const request = { ...defaultRequest, regionCode: `${defaultRequest.regionCode}00` }
+    const known = analyze(request)
+    await vi.advanceTimersByTimeAsync(900)
+    expect(await known).toMatchObject({ request, source: 'demo' })
+    const unknown = expect(analyze({ ...request, regionCode: '1117065000' })).rejects.toMatchObject(
+      { code: 'INSUFFICIENT_DATA', message: expect.stringContaining('데모') },
+    )
+    await vi.advanceTimersByTimeAsync(900)
+    await unknown
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('응답 검증', () => {

@@ -126,8 +126,14 @@ export function isAnalysis(value: unknown): value is Analysis {
   )
 }
 
-export function validateSelection(request: AnalysisRequest, catalog: Catalog): string | null {
+export function validateSelection(
+  request: AnalysisRequest,
+  catalog: Catalog,
+  resolvedRegionCode?: string,
+): string | null {
+  const resolved = resolvedRegionCode === request.regionCode && /^\d{10}$/.test(resolvedRegionCode)
   if (
+    !resolved &&
     !catalog.cities.some((city) =>
       city.districts.some((district) =>
         district.neighborhoods.some((region) => region.code === request.regionCode),
