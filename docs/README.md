@@ -19,6 +19,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 - 모든 Git 작업은 [팀 개발 규칙](TEAM_RULES.md)의 Git Flow를 따른다. FE 적용 절차는 [개발 규칙](DEVELOPMENT.md#git-flow-적용)에 있다.
 - 2026-10-08 원격 `develop`과 로컬의 기준 커밋이 `5a87a15`로 같음을 확인했다. 깨끗한 작업 트리에서 fetch·pull 후 [이슈 #1](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/1)의 `feature/1-map-workspace`를 생성했다. 원격 보호 설정·리뷰·병합은 아직 확인하거나 수행하지 않았다.
 - 첫 화면은 지도 탐색이다. 지역·업종 선택 후 분석 요청을 실행하면 결과를 표시한다.
+- 모든 페이지의 사이드바는 기본 76px 아이콘 메뉴, 하단 `>`로 224px 전체 메뉴를 펼치는 공통 구조다. 로고·메뉴 위치와 페이지 이동 중 펼침 상태를 유지하며 `WORKSPACE` 제목을 제거했다. [공통 사이드바](FRONTEND.md#공통-사이드바)에 모바일 동작과 검증 범위를 정리했다.
 - 기본 실행은 데모 모드이며 수치·평가·진단·분석 경계·시설 마커는 예시 데이터다.
 - 지도 메인 화면·상단 검색 오버레이·우클릭 행정동 조회는 [Draft PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3), 카카오 미세 이동 후 타임아웃 오탐 수정은 별도 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)에 올렸다. 두 PR 모두 대상은 `develop`이며 추가 시각 검증·리뷰·병합은 대기 중이다. 현재 feature 브랜치에는 별도 fix 코드가 포함되지 않는다.
 - 카카오 SDK의 키 종류·허용 도메인 오류 이후 두 로컬 출처에서 SDK HTTP 200을 확인했다. `localhost:5173`에서 실제 도로지도·우클릭과 중심 위치의 행정동 조회 성공을 확인했고, 사용자가 드래그·더블클릭 정상 동작을 확인했다. 트랙패드 휠이 페이지 입력으로 처리되는 보고에 따라 지도 전용 휠 보정을 추가했다. 이전 축척 변화만으로 휠 정상 동작을 확정한 판정은 철회했으며 실제 트랙패드 재확인은 대기 중이다. [지도 조작](MAPS.md#카카오-지도-조작), 모바일 시각 검증·BE 연결·운영 배포의 제한을 확인한다.

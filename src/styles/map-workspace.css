@@ -1,32 +1,3 @@
-.map-workspace-shell .sidebar {
-  width: 76px;
-  padding: 22px 12px;
-}
-
-.map-workspace-shell .brand {
-  padding: 0;
-  margin: 0 auto 34px;
-}
-
-.map-workspace-shell .brand > span:last-child,
-.map-workspace-shell .nav-caption,
-.map-workspace-shell .sidebar-message,
-.map-workspace-shell .sidebar-bottom,
-.map-workspace-shell .nav-item > span,
-.map-workspace-shell .nav-arrow {
-  display: none;
-}
-
-.map-workspace-shell .nav-item {
-  justify-content: center;
-  padding: 15px;
-}
-
-.map-workspace-shell .workspace {
-  margin-left: 76px;
-  width: calc(100% - 76px);
-}
-
 .map-workspace-shell .topbar {
   height: 56px;
   padding-inline: 24px;
@@ -627,29 +598,6 @@
 }
 
 @media (max-width: 760px) {
-  .map-workspace-shell .sidebar {
-    width: 224px;
-    padding: 28px 20px;
-  }
-
-  .map-workspace-shell .brand > span:last-child,
-  .map-workspace-shell .nav-item > span {
-    display: block;
-  }
-
-  .map-workspace-shell .brand {
-    margin: 0 0 28px;
-  }
-
-  .map-workspace-shell .nav-item {
-    justify-content: flex-start;
-  }
-
-  .map-workspace-shell .workspace {
-    margin-left: 0;
-    width: 100%;
-  }
-
   .map-workspace-shell .topbar {
     padding-inline: 16px;
   }
