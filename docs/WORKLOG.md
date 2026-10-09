@@ -61,3 +61,14 @@
 - 현황 확인: 로컬에는 `main`만 있으며 기존 FE 변경은 미커밋 상태. `git ls-remote --heads origin main develop master`로 원격에도 `main`만 있음을 확인. 기준 커밋은 `e9c936c`. 원격 보호 설정은 아직 검증하지 않음.
 - 검증: 첨부 원문을 동일한 Prettier 설정으로 포맷한 결과와 저장한 전문의 전체 일치 확인. 문서 로컬 링크·헤더, `pnpm format:check`, `git diff --check` 확인. 문서만 변경하여 앱 테스트·린트·빌드는 재실행하지 않음.
 - 남은 사항/제약: 문서는 로컬 작업 트리에 반영한 상태이며 이슈·작업 브랜치 생성, 커밋·푸시·PR·리뷰·병합은 수행하지 않음. Git Flow 저장소 전환에는 관리자·팀 절차에 따른 `develop` 준비, 보호 설정 확인, 기존 미커밋 작업의 목적별 이슈·작업 브랜치 연결이 필요. 기존 FE 변경은 보존했으며 팀 완료 기준까지 충족한 상태로 기록하지 않음.
+
+## 2026-10-08 · 003 · 카카오 지도 미세 이동 후 타임아웃 오탐 수정
+
+- 요청/범위: 카카오맵 미작동 점검 중 발견한 기존 정상 지도 오탐. 화면 개편 이슈 #1과 별도인 [이슈 #2](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/2)로 등록하고 FE 담당 `etfactory`에 배정.
+- Git Flow: 최신 원격 `develop`의 `5a87a15`에서 `fix/2-kakao-tile-timeout` 작업 브랜치와 별도 worktree를 생성. 지도 화면 개편의 미커밋 변경과 브라우저에서 확인하는 소스를 보존. 의존성은 기존 로컬 `node_modules`를 링크해 사용했으며 잠금 파일은 변경하지 않음.
+- 재현: `tilesloaded` → 타일 추가 로드 없는 `bounds_changed` → 13초 경과 시 기존 코드의 `onFailure`가 호출됨을 확인. 수정 전 `kakaoHealth.test.tsx` 4개 중 해당 1개 실패, 나머지 3개 통과.
+- 변경: `src/components/KakaoMap.tsx`의 로드 제한 시간을 첫 타일에만 적용. 영역 변경은 이미지 오류 횟수만 초기화하고 타이머를 재시작하지 않음. 정상 타일 로드 시 타이머와 오류 횟수를 초기화. 초기 무응답·반복 이미지 오류·언마운트 정리를 유지.
+- 주요 결정: 공식 문서상 미세 이동에서는 `tilesloaded`가 발생하지 않을 수 있으므로 영역 변경을 타일 로딩 시작으로 간주하지 않음. 이후 타일 요청이 오류 이벤트 없이 멈추는 상황에는 별도 타임아웃이 없다는 제한을 [지도 문서](MAPS.md)에 명시.
+- 검증: `npm run format`, `npm run format:check`, 전체 8개 파일·33개 테스트, `npm run lint`, `npm run build` 통과. 수정 전 실패하던 회귀 테스트와 기존 지도 복구·검색·API·분석 테스트를 함께 확인. `pnpm` 실행 파일이 없어 동일 package.json 스크립트를 npm으로 실행.
+- 공유: 수정 커밋 `2e9059d`를 원격 작업 브랜치에 푸시하고 `develop` 대상 [Draft PR #4](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/4)를 생성. UI와 공개 GitHub API에서 대상·브랜치·Draft 상태 확인. 첫 worktree 푸시의 로컬 인증 실패는 원래 작업 디렉터리에서 같은 브랜치를 푸시해 해결. 코드 변경 없이 문서 상태를 정리하고 링크·경로·포맷·`git diff --check` 확인.
+- 남은 사항: JavaScript 키의 허용 도메인 등록 후 실제 지도 표시·미세 이동 확인. 실제 서비스 검증·리뷰·병합은 미완료.

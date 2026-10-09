@@ -44,19 +44,27 @@ export function KakaoMap({
               if (!cancelled) failure.current()
             }, 12_000)
           }
-          const finishLoad = () => clearTimeout(timer)
+          const finishLoad = () => {
+            errors = 0
+            clearTimeout(timer)
+          }
+          const resetErrors = () => {
+            errors = 0
+          }
           const tileError = (event: Event) => {
             if (event.target instanceof HTMLImageElement && ++errors >= 3 && !cancelled)
               failure.current()
           }
-          maps.event.addListener(map, 'bounds_changed', beginLoad)
+          // Small moves can change bounds without loading tiles or emitting tilesloaded.
+          // Only the initial load has a deadline; subsequent image errors still trigger recovery.
+          maps.event.addListener(map, 'bounds_changed', resetErrors)
           maps.event.addListener(map, 'tilesloaded', finishLoad)
           container.current.addEventListener('error', tileError, true)
           beginLoad()
           const element = container.current
           clearHealthCheck = () => {
             clearTimeout(timer)
-            maps.event.removeListener(map, 'bounds_changed', beginLoad)
+            maps.event.removeListener(map, 'bounds_changed', resetErrors)
             maps.event.removeListener(map, 'tilesloaded', finishLoad)
             element.removeEventListener('error', tileError, true)
           }
