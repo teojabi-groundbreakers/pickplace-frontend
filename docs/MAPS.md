@@ -82,6 +82,8 @@ VITE_KAKAO_MAP_APP_KEY=발급받은_JavaScript_앱_키
 
 ### 지도 위치의 행정동 조회와 분석·둘러보기
 
+행정동 H/법정동 B 구분, 코드 출처·자릿수, 데모 전용 매칭과 공식 확인 절차는 [지역코드 기준](REGION_CODES.md)을 따릅니다.
+
 2026-10-09 사용자 사양 변경에 따라 기존 ‘이 지역 선택’과 FE 지역 목록 포함 여부 검사를 제거했습니다. [이슈 #1](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/1)의 기존 지도 탐색 목적을 보완하며 `feature/1-map-workspace`·Draft PR #3에서 진행합니다.
 
 - Leaflet `contextmenu`, 카카오 `rightclick`에서 실제 위경도를 받아 공식 `services.Geocoder.coord2RegionCode`에 **경도, 위도** 순서로 전달합니다. SDK는 `libraries=services`를 로드합니다. 행정동(`region_type: H`)의 유효한 10자리 코드와 이름을 사용하며 법정동·가장 가까운 마커로 대체하지 않습니다.
