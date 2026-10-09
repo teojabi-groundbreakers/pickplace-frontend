@@ -13,7 +13,10 @@ interface KakaoPoint {
 export interface KakaoMap {
   getCenter(): KakaoLatLng
   setCenter(point: KakaoLatLng): void
-  setLevel(level: number, options?: { anchor: KakaoLatLng }): void
+  setLevel(
+    level: number,
+    options?: { anchor?: KakaoLatLng; animate?: boolean | { duration?: number } },
+  ): void
   getLevel(): number
   getProjection(): {
     coordsFromContainerPoint(point: KakaoPoint): KakaoLatLng
