@@ -41,40 +41,6 @@
   z-index: 0;
 }
 
-.map-canvas .area-map .leaflet-tile-pane {
-  filter: none;
-}
-
-.map-canvas .schematic-map {
-  background-color: #edf2e7;
-  background-image:
-    linear-gradient(#8fa27819 1px, transparent 1px),
-    linear-gradient(90deg, #8fa27819 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.map-provider-toolbar {
-  position: absolute;
-  top: 22px;
-  right: 24px;
-  z-index: 600;
-  padding: 5px;
-  background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  box-shadow: 0 4px 20px #23351c12;
-}
-
-.map-provider-toolbar select {
-  border: 0;
-  background: #fff;
-  min-height: 32px;
-}
-
-.map-provider-toolbar .map-provider-select > svg {
-  margin-left: 7px;
-}
-
 .map-search-overlay {
   position: absolute;
   top: 22px;
@@ -248,23 +214,12 @@
   max-width: 320px;
 }
 
-.map-canvas .schematic-label {
-  left: 24px;
-  bottom: 128px;
-}
-
-.map-canvas .leaflet-top.leaflet-left,
 .map-canvas .kakao-zoom {
   position: absolute;
   top: auto;
   left: auto;
   right: 24px;
   bottom: 122px;
-  margin: 0;
-}
-
-.map-canvas .leaflet-control-zoom {
-  position: static;
   margin: 0;
 }
 
@@ -334,15 +289,8 @@
   overflow-y: auto;
 }
 
-.map-canvas .map-recovery {
-  position: absolute;
-  z-index: 650;
-  bottom: 178px;
-  left: 24px;
-  width: 400px;
-  max-width: calc(100% - 48px);
-  margin: 0;
-  background: #fff9eb;
+.map-query-center.map-retry {
+  z-index: 960;
 }
 
 .map-region-lookup {
@@ -632,11 +580,6 @@
     display: none;
   }
 
-  .map-provider-toolbar {
-    top: 128px;
-    right: 14px;
-  }
-
   .map-region-drawer {
     top: 181px;
     right: 14px;
@@ -660,12 +603,6 @@
     max-width: calc(100% - 90px);
   }
 
-  .map-canvas .schematic-label {
-    left: 14px;
-    bottom: 126px;
-  }
-
-  .map-canvas .leaflet-top.leaflet-left,
   .map-canvas .kakao-zoom {
     right: 14px;
     bottom: 170px;
@@ -680,12 +617,6 @@
     right: 14px;
     bottom: 20px;
     font-size: 11px;
-  }
-
-  .map-canvas .map-recovery {
-    left: 14px;
-    bottom: 180px;
-    max-width: calc(100% - 90px);
   }
 
   .map-region-lookup {

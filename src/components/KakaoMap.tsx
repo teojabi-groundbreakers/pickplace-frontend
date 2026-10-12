@@ -4,7 +4,7 @@ import type { MapRendererProps } from '../types/map'
 import type { KakaoMap as KakaoMapInstance, KakaoMapsApi, KakaoMouseEvent } from '../lib/kakaoMaps'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import { bindKakaoMapWheel } from '../lib/kakaoMapWheel'
-import { mapSettings } from '../lib/mapProviders'
+import { config } from '../lib/config'
 
 export function KakaoMap({
   data,
@@ -30,7 +30,7 @@ export function KakaoMap({
     let observer: ResizeObserver | undefined
     let clearHealthCheck = () => {}
     let clearWheel = () => {}
-    loadKakaoMaps(mapSettings.kakaoAppKey)
+    loadKakaoMaps(config.kakaoMapAppKey)
       .then((maps) => {
         if (cancelled || !container.current) return
         try {

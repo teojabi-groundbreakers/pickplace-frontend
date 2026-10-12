@@ -6,7 +6,7 @@
 
 - [현재 구성·실행·배포](docs/FRONTEND.md)
 - [API 연동 계약 초안](docs/API.md)
-- [지도 흐름·공급자 설정·장애 대응](docs/MAPS.md)
+- [지도 흐름·카카오맵 설정·장애 대응](docs/MAPS.md)
 - [작업 및 문서화 규칙](docs/DEVELOPMENT.md)
 - [팀 개발 규칙 · Git Flow](docs/TEAM_RULES.md)
 - [작업 이력](docs/WORKLOG.md)

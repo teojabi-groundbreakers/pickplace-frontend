@@ -1158,32 +1158,23 @@ td {
   font-family: inherit;
 }
 
-.area-map .leaflet-tile-pane {
-  filter: saturate(0.38) contrast(0.92) brightness(1.035);
+.map-unavailable {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, calc(100% - 48px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-brand);
+  text-align: center;
 }
 
-.area-map .leaflet-control-attribution {
-  font-size: 7px;
-  color: #7f8c74;
-  background: #ffffffc9;
-}
-
-.area-map .leaflet-control-attribution a {
-  color: #526f44;
-}
-
-.area-map .leaflet-control-zoom {
-  border: 1px solid #e2e7d9 !important;
-  margin: 12px 10px;
-}
-
-.area-map .leaflet-control-zoom a {
-  width: 25px;
-  height: 25px;
-  line-height: 25px;
-  font-weight: 400;
-  font-size: 16px;
-  color: #7b8b6a;
+.map-unavailable p {
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .map-label {
@@ -1220,20 +1211,6 @@ td {
   place-items: center;
   z-index: 1000;
   border-radius: 4px;
-}
-
-.map-error {
-  position: absolute;
-  bottom: 20px;
-  left: 10px;
-  right: 50px;
-  z-index: 500;
-  background: #fffef1ee;
-  padding: 8px;
-  border-radius: 5px;
-  color: #8d8556;
-  font-size: 8px;
-  line-height: 1.6;
 }
 
 .map-bottom {
@@ -2648,23 +2625,6 @@ td {
   flex-shrink: 0;
 }
 
-.map-provider-select {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #839474;
-}
-
-.map-provider-select select {
-  border: 1px solid #e2e8d9;
-  border-radius: 6px;
-  padding: 7px 8px;
-  background: #fbfcf8;
-  color: #647b52;
-  font-size: 11px;
-  max-width: 180px;
-}
-
 .map-explorer .map-stage {
   height: clamp(330px, 44vh, 520px);
   margin-inline: 16px;
@@ -2695,68 +2655,6 @@ td {
   height: 33px;
 }
 
-.schematic-map {
-  background-color: #edf2e7;
-  background-image:
-    linear-gradient(#8fa27819 1px, transparent 1px),
-    linear-gradient(90deg, #8fa27819 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.schematic-label {
-  position: absolute;
-  z-index: 500;
-  left: 12px;
-  bottom: 15px;
-  background: #fffffff0;
-  border: 1px solid #dde6d2;
-  color: #8b9b76;
-  padding: 8px 10px;
-  border-radius: 5px;
-  font-size: 10px;
-  pointer-events: none;
-}
-
-.region-map-pin {
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: #88a473;
-  box-shadow: 0 2px 8px #3a532331;
-  display: grid;
-  place-items: center;
-}
-
-.region-map-pin > span {
-  height: 6px;
-  width: 6px;
-  background: #fff;
-  border-radius: 50%;
-}
-
-.region-map-pin.selected {
-  background: #315b43;
-  box-shadow:
-    0 0 0 5px #547e5222,
-    0 2px 8px #3a532331;
-}
-
-.region-tooltip {
-  border: 1px solid #dde6d2;
-  border-radius: 5px;
-  box-shadow: 0 1px 5px #3a53230b;
-  background: #fffffff2;
-  font-family: inherit;
-  color: #72855c;
-  padding: 5px 8px;
-  font-size: 11px;
-}
-
-.region-tooltip.selected {
-  border-color: #8da87b;
-  color: #315b43;
-  font-weight: 650;
-}
-
 .map-region-list {
   border-top: 1px solid #edf1e7;
   padding: 11px 18px;
@@ -2779,32 +2677,6 @@ td {
   background: #eef4e6;
   color: #4e713a;
   border-color: #bfd0ad;
-}
-
-.map-recovery {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  margin: 12px 16px 0;
-  padding: 10px 12px;
-  background: #faf5e8;
-  border: 1px solid #eee3c8;
-  color: #9c895d;
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 1.7;
-}
-
-.map-recovery button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  color: #9c895d;
-  white-space: nowrap;
-  font-size: 10px;
-  padding: 5px 0;
 }
 
 .search-intro {
@@ -2978,10 +2850,6 @@ td {
     gap: 12px;
   }
 
-  .map-provider-select {
-    margin-left: auto;
-  }
-
   .map-explorer .map-stage {
     height: 330px;
     margin-inline: 12px;
@@ -3019,24 +2887,8 @@ td {
     min-height: 34px;
   }
 
-  .map-recovery {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    font-size: 10px;
-  }
-
-  .map-recovery button {
-    align-self: flex-end;
-  }
-
   .map-first-placeholder {
     min-height: 420px;
-  }
-
-  .schematic-label {
-    font-size: 9px;
-    padding: 7px 8px;
   }
 
   .search-intro p {

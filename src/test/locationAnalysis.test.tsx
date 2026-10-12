@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { config } from '../lib/config'
-import { mapSettings } from '../lib/mapProviders'
 import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
 import type { AnalysisRequest } from '../types/analysis'
 import type { MapRendererProps } from '../types/map'
@@ -13,8 +12,8 @@ vi.mock('../lib/regionLookup', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/regionLookup')>()),
   lookupAdministrativeRegion: lookup,
 }))
-vi.mock('../components/LeafletMap', () => ({
-  LeafletMap: ({ onPointSelect, exploreRegion }: MapRendererProps) => (
+vi.mock('../components/KakaoMap', () => ({
+  KakaoMap: ({ onPointSelect, exploreRegion }: MapRendererProps) => (
     <section aria-label="위치 분석 테스트 지도">
       <button onClick={() => onPointSelect?.([37.53213, 126.99267])}>지도 우클릭</button>
       <output aria-label="둘러보기 위치">{JSON.stringify(exploreRegion || null)}</output>
@@ -22,7 +21,6 @@ vi.mock('../components/LeafletMap', () => ({
   ),
 }))
 
-const originalSettings = { ...mapSettings }
 const fetchMock = vi.fn()
 const location = {
   region_type: 'H',
@@ -49,7 +47,6 @@ function response(request: AnalysisRequest) {
 
 beforeEach(() => {
   config.demoMode = false
-  Object.assign(mapSettings, { preferred: 'schematic', kakaoAppKey: '' })
   localStorage.clear()
   window.history.replaceState({}, '', '/')
   lookup.mockReset().mockResolvedValue(location)
@@ -67,7 +64,6 @@ beforeEach(() => {
 
 afterEach(() => {
   config.demoMode = true
-  Object.assign(mapSettings, originalSettings)
   vi.unstubAllGlobals()
 })
 

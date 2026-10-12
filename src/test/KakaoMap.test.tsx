@@ -392,7 +392,7 @@ describe('카카오 지도 이벤트와 상태', () => {
     expect(sdk.setLevel).not.toHaveBeenCalled()
   })
 
-  it('첫 타일이 무응답이면 대체 지도로 복구한다', async () => {
+  it('첫 타일이 무응답이면 지도 실패를 알린다', async () => {
     await mount()
     act(() => vi.advanceTimersByTime(12_000))
     expect(props.onFailure).toHaveBeenCalledOnce()

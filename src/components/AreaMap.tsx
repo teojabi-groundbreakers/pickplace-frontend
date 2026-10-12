@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Layers, MapPin, RotateCcw, X } from 'lucide-react'
-import {
-  getMapProviders,
-  initialMapProvider,
-  mapSettings,
-  nextMapProvider,
-} from '../lib/mapProviders'
+import { MapPin, RotateCcw, X } from 'lucide-react'
+import { config } from '../lib/config'
 import { lookupAdministrativeRegion } from '../lib/regionLookup'
 import type { KakaoRegionResult } from '../lib/kakaoMaps'
-import type { MapProviderId } from '../lib/mapProviders'
 import type { MapRegion, MapViewData, RegionAnalysisOptions } from '../types/map'
 import type { MapPlace } from '../types/analysis'
-import { LeafletMap } from './LeafletMap'
 import { KakaoMap } from './KakaoMap'
 import { RegionLookupActions } from './RegionLookupActions'
 
@@ -63,7 +56,7 @@ export function AreaMap({
       try {
         const region = await lookupAdministrativeRegion(
           point,
-          mapSettings.kakaoAppKey,
+          config.kakaoMapAppKey,
           controller.signal,
         )
         if (!controller.signal.aborted) {
@@ -81,40 +74,20 @@ export function AreaMap({
     },
     [onLookupStart],
   )
-  const providers = useMemo(() => getMapProviders(), [])
-  const [source, setSource] = useState(() => ({
-    provider: initialMapProvider(providers),
-    failed: [] as MapProviderId[],
-    recovery: null as { from: MapProviderId; to: MapProviderId } | null,
-    attempt: 0,
-  }))
+  const [mapFailed, setMapFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const [visible, setVisible] = useState<MapPlace['type'][]>([
     'competitor',
     'transport',
     'facility',
   ])
 
-  const active = providers.find((provider) => provider.id === source.provider)!
   const filteredData = useMemo(
     () => ({ ...data, places: data.places.filter((place) => visible.includes(place.type)) }),
     [data, visible],
   )
 
-  const handleFailure = useCallback(
-    () =>
-      setSource((current) => {
-        if (current.provider !== active.id || current.provider === 'schematic') return current
-        const failed = [...current.failed, current.provider]
-        const next = nextMapProvider(providers, failed)
-        return {
-          ...current,
-          provider: next,
-          failed,
-          recovery: { from: current.provider, to: next },
-        }
-      }),
-    [active.id, providers],
-  )
+  const handleFailure = useCallback(() => setMapFailed(true), [])
 
   const rendererProps = {
     data: filteredData,
@@ -133,64 +106,47 @@ export function AreaMap({
       className="map-panel map-explorer map-canvas"
       aria-label="지역 탐색 지도"
     >
-      <div className="map-provider-toolbar">
-        <label className="map-provider-select">
-          <Layers size={15} />
-          <span className="sr-only">배경지도 선택</span>
-          <select
-            aria-label="배경지도 선택"
-            value={source.provider}
-            onChange={(event) =>
-              setSource({
-                provider: event.target.value as MapProviderId,
-                failed: [],
-                recovery: null,
-                attempt: source.attempt + 1,
-              })
-            }
-          >
-            {providers.map((provider) => (
-              <option
-                key={provider.id}
-                value={provider.id}
-                disabled={!provider.available}
-              >
-                {provider.label}
-                {!provider.available ? ' (설정 필요)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
       <div className="map-stage">
-        {active.id === 'kakao' ? (
-          <KakaoMap
-            key={`kakao-${source.attempt}`}
-            {...rendererProps}
-          />
+        {mapFailed ? (
+          <div
+            className="map-unavailable"
+            role="alert"
+          >
+            <strong>카카오지도를 불러오지 못했어요.</strong>
+            <p>인터넷 연결을 확인한 뒤 다시 시도해 주세요.</p>
+          </div>
         ) : (
-          <LeafletMap
-            key={`${active.id}-${source.attempt}`}
+          <KakaoMap
+            key={attempt}
             {...rendererProps}
-            provider={active}
           />
         )}
-        <span className="map-label">
-          {data.regionName}
-          <small>
-            {exploreRegion
-              ? active.id === 'schematic'
-                ? '기본 위치도에서는 실제 점포를 볼 수 없어요'
-                : '주변 점포명과 시설을 지도에서 살펴보세요'
-              : data.isDemo
-                ? '분석 경계·시설 마커는 예시입니다'
-                : '행정동 표시를 눌러 지역을 선택하세요'}
-          </small>
-        </span>
-        {active.id === 'schematic' && (
-          <span className="schematic-label">기본 위치도 · 실제 도로지도 아님</span>
+        {!mapFailed && (
+          <span className="map-label">
+            {data.regionName}
+            <small>
+              {exploreRegion
+                ? '주변 점포명과 시설을 지도에서 살펴보세요'
+                : data.isDemo
+                  ? '분석 경계·시설 마커는 예시입니다'
+                  : '행정동 표시를 눌러 지역을 선택하세요'}
+            </small>
+          </span>
         )}
       </div>
+      {mapFailed && (
+        <button
+          type="button"
+          className="map-query-center map-retry"
+          onClick={() => {
+            setMapFailed(false)
+            setAttempt((value) => value + 1)
+          }}
+        >
+          <RotateCcw size={15} />
+          카카오지도 다시 시도
+        </button>
+      )}
       {children}
       {lookup && (
         <section
@@ -263,34 +219,6 @@ export function AreaMap({
             </button>
           )}
         </section>
-      )}
-      {source.recovery && (
-        <div
-          className="map-recovery"
-          role="status"
-        >
-          <span>
-            {providers.find((provider) => provider.id === source.recovery?.from)?.label} 연결이
-            원활하지 않아 {active.label}로 전환했어요. 지역 선택과 분석은 계속할 수 있습니다.
-          </span>
-          <button
-            onClick={() =>
-              setSource((current) =>
-                current.recovery
-                  ? {
-                      provider: current.recovery.from,
-                      failed: [],
-                      recovery: null,
-                      attempt: current.attempt + 1,
-                    }
-                  : current,
-              )
-            }
-          >
-            <RotateCcw size={13} />
-            다시 시도
-          </button>
-        </div>
       )}
       <div className="map-bottom">
         <span className="map-selection-hint">

@@ -1,14 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactNode } from 'react'
 import { AreaMap } from '../components/AreaMap'
-import {
-  getMapProviders,
-  initialMapProvider,
-  mapSettings,
-  nextMapProvider,
-} from '../lib/mapProviders'
 import type { MapRendererProps } from '../types/map'
 import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
 import type { KakaoRegionResult } from '../lib/kakaoMaps'
@@ -19,66 +12,40 @@ vi.mock('../lib/regionLookup', async (importOriginal) => ({
   lookupAdministrativeRegion: lookup,
 }))
 
-const tiles = vi.hoisted(() => ({
-  handlers: null as Record<string, () => void> | null,
-  immediateSuccess: false,
-  contextmenu: null as ((event: { latlng: { lat: number; lng: number } }) => void) | null,
-  setView: vi.fn(),
+vi.mock('../lib/config', () => ({
+  config: { kakaoMapAppKey: '' },
 }))
-vi.mock('react-leaflet', async () => {
+
+const kakao = vi.hoisted(() => ({
+  onPointSelect: undefined as MapRendererProps['onPointSelect'],
+  mounts: 0,
+  unmounts: 0,
+  failOnMount: false,
+}))
+vi.mock('../components/KakaoMap', async () => {
   const { useEffect } = await import('react')
-  const map = {
-    invalidateSize: vi.fn(),
-    getContainer: () => document.createElement('div'),
-    fitBounds: vi.fn(),
-    setView: tiles.setView,
-    getZoom: () => 14,
-    getCenter: () => ({ lat: 37.54, lng: 127.05 }),
-  }
   return {
-    MapContainer: ({ children, className }: { children: ReactNode; className: string }) => (
-      <div
-        className={className}
-        data-testid="leaflet-map"
-      >
-        {children}
-      </div>
-    ),
-    TileLayer: ({
-      url,
-      eventHandlers,
-    }: {
-      url: string
-      eventHandlers: Record<string, () => void>
-    }) => {
-      tiles.handlers = eventHandlers
+    KakaoMap: ({ onFailure, onPointSelect, exploreRegion, data }: MapRendererProps) => {
+      kakao.onPointSelect = onPointSelect
       useEffect(() => {
-        if (tiles.immediateSuccess) {
-          eventHandlers.loading()
-          eventHandlers.tileload()
-          eventHandlers.load()
+        kakao.mounts += 1
+        if (kakao.failOnMount) onFailure()
+        return () => {
+          kakao.unmounts += 1
         }
-      }, [eventHandlers])
-      return <span data-testid="tile-source">{url}</span>
-    },
-    Marker: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    CircleMarker: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    Polygon: () => <span data-testid="boundary" />,
-    Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    Tooltip: ({ children }: { children: ReactNode }) => <span>{children}</span>,
-    useMapEvents: (handlers: { contextmenu: typeof tiles.contextmenu }) => {
-      tiles.contextmenu = handlers.contextmenu
-      return map
+      }, [onFailure])
+      return (
+        <section aria-label="카카오 테스트 지도">
+          <button onClick={onFailure}>카카오 연결 실패 시뮬레이션</button>
+          <button onClick={() => onPointSelect?.([37.54, 127.05])}>중심 위치 조회</button>
+          <output aria-label="둘러보기 위치">{JSON.stringify(exploreRegion || null)}</output>
+          <output aria-label="표시 시설">{data.places.map((place) => place.name).join(',')}</output>
+        </section>
+      )
     },
   }
 })
-vi.mock('../components/KakaoMap', () => ({
-  KakaoMap: ({ onFailure }: MapRendererProps) => (
-    <button onClick={onFailure}>카카오 연결 실패 시뮬레이션</button>
-  ),
-}))
 
-const originalSettings = { ...mapSettings }
 const result = createDemoAnalysis(defaultRequest)
 const props = {
   data: { ...result.map, regionName: result.regionName, isDemo: true },
@@ -106,14 +73,10 @@ beforeEach(() => {
   props.onExploreRegion.mockClear()
   props.analysis.onIndustryChange.mockClear()
   props.analysis.onAnalyze.mockClear()
-  tiles.immediateSuccess = false
-  tiles.setView.mockClear()
-  Object.assign(mapSettings, originalSettings, {
-    preferred: 'osm',
-    kakaoAppKey: '',
-    tileUrl: '',
-    tileAttribution: '',
-  })
+  kakao.onPointSelect = undefined
+  kakao.mounts = 0
+  kakao.unmounts = 0
+  kakao.failOnMount = false
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -133,7 +96,7 @@ const administrative: KakaoRegionResult = {
 }
 
 describe('지도 위치의 행정구역 조회', () => {
-  it('둘러보기 좌표를 우선 확대하고 이전 분석 경계에 맞춰 돌아가지 않는다', () => {
+  it('둘러보기 좌표를 이전 분석 데이터와 구분해 카카오지도에 전달한다', () => {
     const region = {
       code: '1117065000',
       name: '이태원1동',
@@ -146,7 +109,7 @@ describe('지도 위치의 행정구역 조회', () => {
         exploreRegion={region}
       />,
     )
-    expect(tiles.setView).toHaveBeenLastCalledWith(region.center, 17)
+    expect(JSON.parse(screen.getByLabelText('둘러보기 위치').textContent || '')).toEqual(region)
     expect(props.analysis.onAnalyze).not.toHaveBeenCalled()
   })
 
@@ -154,7 +117,7 @@ describe('지도 위치의 행정구역 조회', () => {
     lookup.mockResolvedValue(administrative)
     const user = userEvent.setup()
     const view = render(<AreaMap {...props} />)
-    await act(async () => tiles.contextmenu?.({ latlng: { lat: 37.54, lng: 127.05 } }))
+    await act(async () => kakao.onPointSelect?.([37.54, 127.05]))
     expect(lookup).toHaveBeenCalledWith([37.54, 127.05], '', expect.any(AbortSignal))
     expect(screen.getByText(administrative.address_name)).toBeInTheDocument()
     expect(props.onRegionSelect).not.toHaveBeenCalled()
@@ -230,6 +193,30 @@ describe('지도 위치의 행정구역 조회', () => {
     expect(screen.getByRole('button', { name: '이 지역 둘러보기' })).toBeEnabled()
   })
 
+  it('행정동 조회 실패를 알리고 같은 좌표를 다시 조회한다', async () => {
+    lookup.mockRejectedValueOnce(new Error('행정구역 연결을 확인해 주세요.'))
+    lookup.mockResolvedValueOnce(administrative)
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
+    expect(await screen.findByText('행정구역 연결을 확인해 주세요.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '이 지역 분석' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '행정구역 다시 조회' }))
+    expect(await screen.findByText(administrative.address_name)).toBeInTheDocument()
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(lookup).toHaveBeenLastCalledWith([37.54, 127.05], '', expect.any(AbortSignal))
+  })
+
+  it('행정동이 없는 위치에서는 분석 버튼 없이 다른 위치 선택을 안내한다', async () => {
+    lookup.mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
+    expect(await screen.findByText(/이 위치의 행정동을 찾지 못했어요/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '이 지역 분석' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '이 지역 둘러보기' })).not.toBeInTheDocument()
+  })
+
   it('이전 조회 응답은 최신 위치를 덮어쓰지 않으며 닫으면 요청을 취소한다', async () => {
     let first!: (region: KakaoRegionResult) => void
     let second!: (region: KakaoRegionResult) => void
@@ -248,11 +235,11 @@ describe('지도 위치의 행정구역 조회', () => {
     const user = userEvent.setup()
     render(<AreaMap {...props} />)
     act(() => {
-      void tiles.contextmenu?.({ latlng: { lat: 37.54, lng: 127.05 } })
+      void kakao.onPointSelect?.([37.54, 127.05])
     })
     const firstSignal = lookup.mock.calls[0][2] as AbortSignal
     act(() => {
-      void tiles.contextmenu?.({ latlng: { lat: 37.55, lng: 127.06 } })
+      void kakao.onPointSelect?.([37.55, 127.06])
     })
     expect(firstSignal.aborted).toBe(true)
     await act(async () => second({ ...administrative, address_name: '최신 행정동' }))
@@ -264,63 +251,32 @@ describe('지도 위치의 행정구역 조회', () => {
   })
 })
 afterEach(() => {
-  Object.assign(mapSettings, originalSettings)
   vi.unstubAllGlobals()
-  vi.useRealTimers()
 })
 
-describe('지도 제공자 선택', () => {
-  it('설정된 카카오지도를 우선 사용하고 명시한 공급자의 키가 없으면 위치도를 사용한다', () => {
-    const providers = getMapProviders({ ...mapSettings, kakaoAppKey: 'test-browser-key' })
-    expect(initialMapProvider(providers, 'auto')).toBe('kakao')
-    expect(initialMapProvider(getMapProviders(), 'kakao')).toBe('schematic')
-    expect(nextMapProvider(providers, ['kakao'])).toBe('schematic')
-  })
-  it('별도 타일은 HTTPS/동일 출처 XYZ URL과 출처 표기가 모두 필요하다', () => {
-    const configured = {
-      ...mapSettings,
-      tileUrl: '/tiles/{z}/{x}/{y}.png',
-      tileAttribution: 'Licensed tiles',
-    }
-    expect(initialMapProvider(getMapProviders(configured), 'auto')).toBe('custom')
-    expect(nextMapProvider(getMapProviders(configured), ['osm'])).toBe('custom')
-    expect(
-      getMapProviders({ ...configured, tileAttribution: '' }).find(
-        (provider) => provider.id === 'custom',
-      )?.available,
-    ).toBe(false)
-    expect(
-      getMapProviders({ ...configured, tileUrl: 'javascript:alert(1)' }).find(
-        (provider) => provider.id === 'custom',
-      )?.available,
-    ).toBe(false)
-  })
-})
-
-describe('지도 장애 복구', () => {
-  it('마운트 직후 캐시 타일 로드가 완료되어도 타임아웃을 남기지 않는다', () => {
-    vi.useFakeTimers()
-    tiles.immediateSuccess = true
+describe('카카오 단일 지도와 오류 재시도', () => {
+  it('카카오지도만 렌더링하고 지도 제공자 선택과 대체 지도 안내를 표시하지 않는다', () => {
     render(<AreaMap {...props} />)
-    act(() => vi.advanceTimersByTime(13_000))
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('osm')
+    expect(screen.getByRole('region', { name: '카카오 테스트 지도' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('배경지도 선택')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByText(/기본 위치도|OpenStreetMap|별도 타일/)).not.toBeInTheDocument()
+    expect(kakao.mounts).toBe(1)
   })
 
-  it('OSM 타일 오류가 반복되면 외부 요청 없는 위치도로 전환하고 선택을 유지한다', async () => {
+  it('카카오 연결 실패를 오류로 알리고 다시 시도하면 같은 카카오지도를 새로 마운트한다', async () => {
     const user = userEvent.setup()
     render(<AreaMap {...props} />)
-    expect(screen.getByTestId('tile-source')).toHaveTextContent('tile.openstreetmap.org')
-    act(() => {
-      tiles.handlers?.loading()
-      tiles.handlers?.tileerror()
-      tiles.handlers?.tileerror()
-      tiles.handlers?.tileerror()
-      tiles.handlers?.load()
-    })
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('schematic')
-    expect(screen.queryByTestId('tile-source')).not.toBeInTheDocument()
-    expect(screen.getByTestId('boundary')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('지역 선택과 분석은 계속할 수 있습니다')
+    await user.click(screen.getByRole('button', { name: '카카오 연결 실패 시뮬레이션' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('카카오지도를 불러오지 못했어요.')
+    expect(screen.queryByRole('region', { name: '카카오 테스트 지도' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/전환했어요|기본 위치도/)).not.toBeInTheDocument()
+    expect(kakao.unmounts).toBe(1)
+    await user.click(screen.getByRole('button', { name: '카카오지도 다시 시도' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '카카오 테스트 지도' })).toBeInTheDocument()
+    expect(kakao.mounts).toBe(2)
+    expect(props.onRegionSelect).not.toHaveBeenCalled()
     await user.click(screen.getByText(/표시된 행정동 1곳/))
     expect(screen.getByRole('button', { name: '성수2가1동' })).toHaveAttribute(
       'aria-pressed',
@@ -328,41 +284,32 @@ describe('지도 장애 복구', () => {
     )
     await user.click(screen.getByRole('button', { name: '성수2가1동' }))
     expect(props.onRegionSelect).toHaveBeenCalledWith(defaultRequest.regionCode)
-    await user.click(screen.getByRole('button', { name: '다시 시도' }))
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('osm')
   })
-  it('응답이 멈춘 타일은 제한 시간 후 복구하며 정상 타일은 전환하지 않는다', () => {
-    vi.useFakeTimers()
-    render(<AreaMap {...props} />)
-    act(() => {
-      tiles.handlers?.loading()
-      tiles.handlers?.tileload()
-      tiles.handlers?.load()
-      vi.advanceTimersByTime(13_000)
-    })
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('osm')
-    act(() => {
-      tiles.handlers?.loading()
-      vi.advanceTimersByTime(12_000)
-    })
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('schematic')
-  })
-  it('카카오 실패 시 허가된 별도 타일을 사용하고, 다시 실패하면 위치도로 전환한다', async () => {
-    Object.assign(mapSettings, {
-      preferred: 'kakao',
-      kakaoAppKey: 'test-browser-key',
-      tileUrl: '/tiles/{z}/{x}/{y}.png',
-      tileAttribution: 'Licensed tiles',
-    })
+
+  it('마운트 중 발생한 카카오 오류도 재시도마다 표시하며 다른 지도로 바꾸지 않는다', async () => {
+    kakao.failOnMount = true
     const user = userEvent.setup()
     render(<AreaMap {...props} />)
-    await user.click(screen.getByRole('button', { name: '카카오 연결 실패 시뮬레이션' }))
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('custom')
-    act(() => {
-      tiles.handlers?.loading()
-      tiles.handlers?.tileerror()
-      tiles.handlers?.load()
-    })
-    expect(screen.getByLabelText('배경지도 선택')).toHaveValue('schematic')
+    expect(screen.getByRole('alert')).toHaveTextContent('카카오지도를 불러오지 못했어요.')
+    await user.click(screen.getByRole('button', { name: '카카오지도 다시 시도' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('카카오지도를 불러오지 못했어요.')
+    expect(kakao.mounts).toBe(2)
+    expect(screen.queryByLabelText('배경지도 선택')).not.toBeInTheDocument()
+    expect(props.analysis.onAnalyze).not.toHaveBeenCalled()
+  })
+
+  it('시설 레이어 선택을 카카오 렌더러에 전달한다', async () => {
+    const user = userEvent.setup()
+    render(<AreaMap {...props} />)
+    const competitor = props.data.places.find((place) => place.type === 'competitor')!
+    const transport = props.data.places.find((place) => place.type === 'transport')!
+    expect(screen.getByLabelText('표시 시설')).toHaveTextContent(competitor.name)
+    await user.click(screen.getByRole('button', { name: '동종 점포' }))
+    expect(screen.getByRole('button', { name: '동종 점포' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(screen.getByLabelText('표시 시설')).not.toHaveTextContent(competitor.name)
+    expect(screen.getByLabelText('표시 시설')).toHaveTextContent(transport.name)
   })
 })
