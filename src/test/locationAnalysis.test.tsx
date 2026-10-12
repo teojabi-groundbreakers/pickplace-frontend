@@ -12,6 +12,10 @@ vi.mock('../lib/regionLookup', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/regionLookup')>()),
   lookupAdministrativeRegion: lookup,
 }))
+vi.mock('../lib/regionBoundary', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/regionBoundary')>()),
+  getRegionBoundary: vi.fn().mockResolvedValue(null),
+}))
 vi.mock('../components/KakaoMap', () => ({
   KakaoMap: ({ onPointSelect, exploreRegion }: MapRendererProps) => (
     <section aria-label="위치 분석 테스트 지도">

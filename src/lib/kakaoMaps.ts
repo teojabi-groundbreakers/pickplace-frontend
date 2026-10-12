@@ -65,7 +65,7 @@ export interface KakaoMapsApi {
   }) => KakaoLayer
   Polygon: new (options: {
     map: KakaoMap
-    path: KakaoLatLng[]
+    path: KakaoLatLng[] | KakaoLatLng[][]
     strokeWeight: number
     strokeColor: string
     strokeOpacity: number

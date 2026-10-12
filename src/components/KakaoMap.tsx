@@ -4,6 +4,7 @@ import type { MapRendererProps } from '../types/map'
 import type { KakaoMap as KakaoMapInstance, KakaoMapsApi, KakaoMouseEvent } from '../lib/kakaoMaps'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
 import { bindKakaoMapWheel } from '../lib/kakaoMapWheel'
+import { geometryToMapPolygons } from '../lib/regionBoundary'
 import { config } from '../lib/config'
 
 export function KakaoMap({
@@ -16,15 +17,20 @@ export function KakaoMap({
   onPointSelect,
   lookupPoint,
   exploreRegion,
+  administrativeBoundary,
+  hideAnalysisBoundary,
+  onBoundaryFailure,
 }: MapRendererProps) {
   const container = useRef<HTMLDivElement>(null)
   const instance = useRef<KakaoMapInstance | null>(null)
   const [api, setApi] = useState<KakaoMapsApi | null>(null)
   const initialCenter = useRef(data.center)
   const failure = useRef(onFailure)
+  const boundaryFailure = useRef(onBoundaryFailure)
   useEffect(() => {
     failure.current = onFailure
-  }, [onFailure])
+    boundaryFailure.current = onBoundaryFailure
+  }, [onFailure, onBoundaryFailure])
   useEffect(() => {
     let cancelled = false
     let observer: ResizeObserver | undefined
@@ -110,8 +116,42 @@ export function KakaoMap({
     const map = instance.current
     if (!api || !map) return
     const overlays: { setMap: (map: KakaoMapInstance | null) => void }[] = []
+    const clearOverlays = () => {
+      overlays.splice(0).forEach((overlay) => overlay.setMap(null))
+    }
     try {
-      if (data.boundary.length >= 3) {
+      if (administrativeBoundary) {
+        const polygons = geometryToMapPolygons(administrativeBoundary.geometry)
+        for (const polygon of polygons) {
+          overlays.push(
+            new api.Polygon({
+              map,
+              path: polygon.map((ring) => ring.map((point) => new api.LatLng(...point))),
+              strokeWeight: 2,
+              strokeColor: '#62876c',
+              strokeOpacity: 0.8,
+              fillColor: '#8cac7d',
+              fillOpacity: 0.12,
+            }),
+          )
+        }
+        const label = document.createElement('span')
+        label.className = 'kakao-boundary-label'
+        label.textContent = administrativeBoundary.regionName
+        label.style.pointerEvents = 'none'
+        label.setAttribute('aria-hidden', 'true')
+        const [longitude, latitude] = administrativeBoundary.labelPosition
+        overlays.push(
+          new api.CustomOverlay({
+            map,
+            content: label,
+            clickable: false,
+            position: new api.LatLng(latitude, longitude),
+            yAnchor: 0.5,
+            zIndex: 3,
+          }),
+        )
+      } else if (!hideAnalysisBoundary && data.boundary.length >= 3) {
         overlays.push(
           new api.Polygon({
             map,
@@ -124,6 +164,18 @@ export function KakaoMap({
           }),
         )
       }
+    } catch {
+      clearOverlays()
+      if (administrativeBoundary) boundaryFailure.current?.()
+      else failure.current()
+    }
+    return clearOverlays
+  }, [api, administrativeBoundary, hideAnalysisBoundary, data.boundary])
+  useEffect(() => {
+    const map = instance.current
+    if (!api || !map) return
+    const overlays: { setMap: (map: KakaoMapInstance | null) => void }[] = []
+    try {
       for (const region of regions) {
         const button = document.createElement('button')
         button.className = `kakao-region-marker ${region.code === selectedRegionCode ? 'selected' : ''}`

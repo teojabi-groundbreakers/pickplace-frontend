@@ -1,4 +1,5 @@
 import type { Analysis, IndustryCategory, Neighborhood } from './analysis'
+import type { RegionBoundary } from './boundary'
 
 export interface MapRegion extends Neighborhood {
   fullName: string
@@ -29,4 +30,7 @@ export interface MapRendererProps {
   onPointSelect?: (point: [number, number]) => void
   lookupPoint?: [number, number]
   exploreRegion?: MapRegion | null
+  administrativeBoundary?: RegionBoundary | null
+  hideAnalysisBoundary?: boolean
+  onBoundaryFailure?: () => void
 }

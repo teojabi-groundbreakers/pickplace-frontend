@@ -13,7 +13,11 @@ vi.mock('../lib/regionLookup', async (importOriginal) => ({
 }))
 
 vi.mock('../lib/config', () => ({
-  config: { kakaoMapAppKey: '' },
+  config: { kakaoMapAppKey: '', demoMode: true },
+}))
+vi.mock('../lib/regionBoundary', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/regionBoundary')>()),
+  getRegionBoundary: vi.fn().mockResolvedValue(null),
 }))
 
 const kakao = vi.hoisted(() => ({
