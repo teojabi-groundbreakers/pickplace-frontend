@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { LocateFixed, Minus, Plus } from 'lucide-react'
+import { LocateFixed, MapPin, Minus, Plus } from 'lucide-react'
 import type { MapRendererProps } from '../types/map'
-import type { KakaoMap as KakaoMapInstance, KakaoMapsApi } from '../lib/kakaoMaps'
+import type { KakaoMap as KakaoMapInstance, KakaoMapsApi, KakaoMouseEvent } from '../lib/kakaoMaps'
 import { loadKakaoMaps } from '../lib/kakaoMaps'
-import { mapSettings } from '../lib/mapProviders'
+import { bindKakaoMapWheel } from '../lib/kakaoMapWheel'
+import { geometryToMapPolygons } from '../lib/regionBoundary'
+import { config } from '../lib/config'
 
 export function KakaoMap({
   data,
@@ -12,29 +14,42 @@ export function KakaoMap({
   disabled,
   onRegionSelect,
   onFailure,
+  onPointSelect,
+  lookupPoint,
+  exploreRegion,
+  administrativeBoundary,
+  hideAnalysisBoundary,
+  onBoundaryFailure,
 }: MapRendererProps) {
   const container = useRef<HTMLDivElement>(null)
   const instance = useRef<KakaoMapInstance | null>(null)
   const [api, setApi] = useState<KakaoMapsApi | null>(null)
   const initialCenter = useRef(data.center)
   const failure = useRef(onFailure)
+  const boundaryFailure = useRef(onBoundaryFailure)
   useEffect(() => {
     failure.current = onFailure
-  }, [onFailure])
+    boundaryFailure.current = onBoundaryFailure
+  }, [onFailure, onBoundaryFailure])
   useEffect(() => {
     let cancelled = false
     let observer: ResizeObserver | undefined
     let clearHealthCheck = () => {}
-    loadKakaoMaps(mapSettings.kakaoAppKey)
+    let clearWheel = () => {}
+    loadKakaoMaps(config.kakaoMapAppKey)
       .then((maps) => {
         if (cancelled || !container.current) return
         try {
           instance.current = new maps.Map(container.current, {
             center: new maps.LatLng(...initialCenter.current),
             level: 5,
-            scrollwheel: false,
+            draggable: true,
+            scrollwheel: true,
+            disableDoubleClick: false,
+            disableDoubleClickZoom: false,
           })
           const map = instance.current
+          clearWheel = bindKakaoMapWheel(container.current, map, maps)
           let errors = 0
           let timer: ReturnType<typeof setTimeout>
           const beginLoad = () => {
@@ -82,6 +97,7 @@ export function KakaoMap({
     return () => {
       cancelled = true
       clearHealthCheck()
+      clearWheel()
       observer?.disconnect()
       instance.current = null
       element?.replaceChildren()
@@ -89,10 +105,53 @@ export function KakaoMap({
   }, [])
   useEffect(() => {
     const map = instance.current
+    if (!api || !map || !onPointSelect) return
+    const selectPoint = (event: KakaoMouseEvent) => {
+      onPointSelect([event.latLng.getLat(), event.latLng.getLng()])
+    }
+    api.event.addListener(map, 'rightclick', selectPoint)
+    return () => api.event.removeListener(map, 'rightclick', selectPoint)
+  }, [api, onPointSelect])
+  useEffect(() => {
+    const map = instance.current
     if (!api || !map) return
     const overlays: { setMap: (map: KakaoMapInstance | null) => void }[] = []
+    const clearOverlays = () => {
+      overlays.splice(0).forEach((overlay) => overlay.setMap(null))
+    }
     try {
-      if (data.boundary.length >= 3) {
+      if (administrativeBoundary) {
+        const polygons = geometryToMapPolygons(administrativeBoundary.geometry)
+        for (const polygon of polygons) {
+          overlays.push(
+            new api.Polygon({
+              map,
+              path: polygon.map((ring) => ring.map((point) => new api.LatLng(...point))),
+              strokeWeight: 2,
+              strokeColor: '#62876c',
+              strokeOpacity: 0.8,
+              fillColor: '#8cac7d',
+              fillOpacity: 0.12,
+            }),
+          )
+        }
+        const label = document.createElement('span')
+        label.className = 'kakao-boundary-label'
+        label.textContent = administrativeBoundary.regionName
+        label.style.pointerEvents = 'none'
+        label.setAttribute('aria-hidden', 'true')
+        const [longitude, latitude] = administrativeBoundary.labelPosition
+        overlays.push(
+          new api.CustomOverlay({
+            map,
+            content: label,
+            clickable: false,
+            position: new api.LatLng(latitude, longitude),
+            yAnchor: 0.5,
+            zIndex: 3,
+          }),
+        )
+      } else if (!hideAnalysisBoundary && data.boundary.length >= 3) {
         overlays.push(
           new api.Polygon({
             map,
@@ -105,6 +164,18 @@ export function KakaoMap({
           }),
         )
       }
+    } catch {
+      clearOverlays()
+      if (administrativeBoundary) boundaryFailure.current?.()
+      else failure.current()
+    }
+    return clearOverlays
+  }, [api, administrativeBoundary, hideAnalysisBoundary, data.boundary])
+  useEffect(() => {
+    const map = instance.current
+    if (!api || !map) return
+    const overlays: { setMap: (map: KakaoMapInstance | null) => void }[] = []
+    try {
       for (const region of regions) {
         const button = document.createElement('button')
         button.className = `kakao-region-marker ${region.code === selectedRegionCode ? 'selected' : ''}`
@@ -151,15 +222,33 @@ export function KakaoMap({
           }),
         )
       }
+      if (lookupPoint) {
+        const point = document.createElement('span')
+        point.className = 'kakao-lookup-marker'
+        overlays.push(
+          new api.CustomOverlay({
+            map,
+            content: point,
+            clickable: false,
+            position: new api.LatLng(...lookupPoint),
+            zIndex: 6,
+          }),
+        )
+      }
     } catch {
       failure.current()
     }
     return () => overlays.forEach((overlay) => overlay.setMap(null))
-  }, [api, data, regions, selectedRegionCode, disabled, onRegionSelect])
+  }, [api, data, regions, selectedRegionCode, disabled, onRegionSelect, lookupPoint])
   useEffect(() => {
     const map = instance.current
     if (!api || !map) return
     try {
+      if (exploreRegion) {
+        map.setCenter(new api.LatLng(...exploreRegion.center))
+        map.setLevel(Math.min(map.getLevel(), 3))
+        return
+      }
       if (data.boundary.length >= 3 || (!selectedRegionCode && regions.length > 1)) {
         const bounds = new api.LatLngBounds()
         const points =
@@ -173,7 +262,7 @@ export function KakaoMap({
     } catch {
       failure.current()
     }
-  }, [api, data.center, data.boundary, regions, selectedRegionCode])
+  }, [api, data.center, data.boundary, regions, selectedRegionCode, exploreRegion])
   const recenter = () => {
     if (api) {
       instance.current?.setCenter(new api.LatLng(...data.center))
@@ -224,6 +313,20 @@ export function KakaoMap({
       >
         <LocateFixed size={17} />
       </button>
+      {onPointSelect && (
+        <button
+          type="button"
+          className="map-query-center"
+          disabled={!api}
+          onClick={() => {
+            const point = instance.current?.getCenter()
+            if (point) onPointSelect([point.getLat(), point.getLng()])
+          }}
+        >
+          <MapPin size={16} />
+          중심 위치 조회
+        </button>
+      )}
     </>
   )
 }
