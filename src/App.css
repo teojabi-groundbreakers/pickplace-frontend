@@ -1,5 +1,7 @@
 .app-shell {
   --sidebar-width: 76px;
+  --topbar-height: 56px;
+  --topbar-padding-inline: 24px;
   display: flex;
   min-height: 100vh;
 }
@@ -307,8 +309,8 @@
 }
 
 .topbar {
-  height: 69px;
-  padding: 0 38px;
+  height: var(--topbar-height);
+  padding: 0 var(--topbar-padding-inline);
   background: #ffffffc7;
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -377,7 +379,7 @@ main {
   padding: 32px 38px 18px;
   max-width: 1580px;
   margin: 0 auto;
-  min-height: calc(100vh - 134px);
+  min-height: calc(100vh - var(--topbar-height) - 65px);
 }
 
 .page-heading {
@@ -1823,10 +1825,6 @@ td {
     padding: 28px 25px 18px;
   }
 
-  .topbar {
-    padding-inline: 25px;
-  }
-
   .footer {
     margin-inline: 25px;
   }
@@ -2065,6 +2063,10 @@ td {
 }
 
 @media (max-width: 760px) {
+  .app-shell {
+    --topbar-padding-inline: 16px;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     transition: transform 0.2s;
@@ -2113,11 +2115,6 @@ td {
   .workspace {
     margin-left: 0;
     width: 100%;
-  }
-
-  .topbar {
-    padding-inline: 20px;
-    height: 60px;
   }
 
   .breadcrumb {
