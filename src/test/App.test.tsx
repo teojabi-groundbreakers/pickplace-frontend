@@ -85,3 +85,61 @@ describe('상권 분석 화면 흐름', () => {
     )
   })
 })
+
+describe('서비스 소개 내비게이션', () => {
+  it('배너에서 소개와 사용법으로 이동하며 사이드바 상태와 주요 메뉴를 유지한다', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('region', { name: '테스트 지도' })
+
+    await user.click(screen.getByRole('button', { name: '사이드바 펼치기' }))
+    await user.click(screen.getByRole('button', { name: '내비게이션 열기' }))
+    expect(screen.getByRole('button', { name: '내비게이션 열기' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await user.click(
+      within(screen.getByLabelText('사이드바')).getByRole('link', { name: 'PickPlace 소개' }),
+    )
+
+    expect(window.location.pathname).toBe('/about')
+    expect(
+      screen.getByRole('heading', { level: 1, name: '좋은 시작을 위한 좋은 자리' }),
+    ).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByText('PickPlace 소개')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '내비게이션 열기' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: '사이드바 접기' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+
+    const navigation = screen.getByRole('navigation', { name: '주요 메뉴' })
+    expect(within(navigation).getAllByRole('link')).toHaveLength(3)
+    expect(within(navigation).getByRole('link', { name: '이용 가이드' })).toHaveAttribute(
+      'href',
+      '/guide',
+    )
+
+    await user.click(screen.getByRole('link', { name: '이용 방법 보기' }))
+    expect(window.location.pathname).toBe('/guide')
+    expect(
+      screen.getByRole('heading', { level: 1, name: /가능성을 읽는 방법/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('소개 주소에 직접 진입한 뒤 지도로 이동할 수 있다', async () => {
+    window.history.replaceState({}, '', '/about')
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByRole('heading', { level: 1, name: '좋은 시작을 위한 좋은 자리' })
+    expect(within(screen.getByRole('banner')).getByText('PickPlace 소개')).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: '지도에서 시작하기' }))
+
+    expect(window.location.pathname).toBe('/')
+    expect(await screen.findByRole('region', { name: '테스트 지도' })).toBeInTheDocument()
+  })
+})

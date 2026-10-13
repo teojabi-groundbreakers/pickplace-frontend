@@ -9,6 +9,7 @@ import { Layout } from './components/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { Saved } from './pages/Saved'
 import { Guide } from './pages/Guide'
+import { About } from './pages/About'
 import './App.css'
 import './styles/map-workspace.css'
 
@@ -96,6 +97,10 @@ function Workspace() {
         <Route
           path="/guide"
           element={<Guide />}
+        />
+        <Route
+          path="/about"
+          element={<About />}
         />
         <Route
           path="*"

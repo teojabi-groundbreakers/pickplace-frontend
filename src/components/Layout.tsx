@@ -16,17 +16,19 @@ import {
 import { config } from '../lib/config'
 import type { ReactNode } from 'react'
 
+const pageTitles: Record<string, string> = {
+  '/': '상권 분석',
+  '/saved': '저장한 분석',
+  '/guide': '이용 가이드',
+  '/about': 'PickPlace 소개',
+}
+
 export function Layout({ children, savedCount }: { children: ReactNode; savedCount: number }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const location = useLocation()
   const mapWorkspace = location.pathname === '/'
-  const page =
-    location.pathname === '/saved'
-      ? '저장한 분석'
-      : location.pathname === '/guide'
-        ? '이용 가이드'
-        : '상권 분석'
+  const page = pageTitles[location.pathname] ?? '상권 분석'
   const items = [
     { to: '/', icon: ChartNoAxesCombined, label: '상권 분석' },
     { to: '/saved', icon: Bookmark, label: '저장한 분석' },
@@ -127,10 +129,10 @@ export function Layout({ children, savedCount }: { children: ReactNode; savedCou
               확신은 PickPlace에서.
             </p>
             <Link
-              to="/guide"
+              to="/about"
               onClick={() => setMenuOpen(false)}
             >
-              분석 활용 가이드 <ArrowUpRight size={15} />
+              PickPlace 소개 <ArrowUpRight size={15} />
             </Link>
           </div>
           <div className="sidebar-bottom">
