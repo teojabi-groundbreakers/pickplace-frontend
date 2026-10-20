@@ -100,7 +100,7 @@
 - 둘러보기는 경계를 숨기고 클릭 위치를 확대합니다. 분석 버튼의 `POST /analyses` 계약은 그대로이며 경계 조회 실패가 분석 지원 여부나 표본 부족 판정을 대신하지 않습니다.
 - 기본 데모에서는 경계 HTTP 요청을 보내거나 실제 경계를 합성하지 않고 ‘데모에서는 실제 행정동 경계를 제공하지 않아요’라고 안내합니다. 실제 API 모드의 `404 + BOUNDARY_NOT_AVAILABLE`만 경계 없음으로 처리하며 endpoint 누락의 일반 404·HTML/204·잘못된 CRS/코드·서버 장애는 오류로 구분합니다.
 
-구현은 [이슈 #7](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/7)에서 기존 지도 작업 #1의 하위 범위로 관리하며 `feature/1-map-workspace`·Draft PR #3에 포함합니다. 모의 API/SDK 검증과 실제 경계 서비스 연결은 구분하며 실행 결과·시각 검증 제한은 [작업 이력](WORKLOG.md)에 기록합니다.
+구현 기록은 [이슈 #7](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/7)에 보존하며 2026-10-20 대표 #1로 통합 종료했습니다. 남은 FE 확인·리뷰/병합은 #1·`feature/1-map-workspace`·Draft PR #3에서 관리하고 실제 SGIS 연계는 #10의 후순위 검토로 분리합니다. 모의 API/SDK 검증과 실제 연결은 구분하며 실행 결과·시각 검증 제한은 [작업 이력](WORKLOG.md)에 기록합니다.
 
 ### FE 정적 경계 제공 대안
 
