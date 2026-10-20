@@ -19,6 +19,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 ## 현재 기준
 
 - 모든 Git 작업은 [팀 개발 규칙](TEAM_RULES.md)의 Git Flow를 따른다. FE 적용 절차는 [개발 규칙](DEVELOPMENT.md#git-flow-적용)에 있다.
+- 2026-10-20 [브랜치 재점검](DEVELOPMENT.md#브랜치-점검-결과)에서 main/develop/feature 3개와 원격 동기화·조상 관계, worktree 1개가 정상임을 확인했다. `main`/`develop`의 원격 보호 규칙은 미설정으로 확인해 [이슈 #11](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/11)에 등록했다. 구조 점검 완료와 보호 설정 적용 대기·Draft PR #3 리뷰/병합 대기를 구분한다.
 - 2026-10-20 사용자 요청으로 기존 커밋·원격·이슈/PR를 점검했다. 기존 feature 전용 26개 커밋은 Conventional Commits이며 공유 이력을 보존했다. 로컬 `develop`은 `origin/develop`의 `56eefaa`로 fast-forward했고 병합된 `fix/2-kakao-tile-timeout`은 로컬/원격에서 정리했다. 미병합 Draft PR #3의 하위 #7/#8/#9는 리뷰·병합 완료 체크를 정정해 다시 열었다. 점검 기록·실제 검증 범위·남은 팀 완료 조건은 [작업 이력](WORKLOG.md)에 있다.
 - 2026-10-08 원격 `develop`과 로컬의 기준 커밋이 `5a87a15`로 같음을 확인했다. 깨끗한 작업 트리에서 fetch·pull 후 [이슈 #1](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/1)의 `feature/1-map-workspace`를 생성했다. 원격 보호 설정·리뷰·병합은 아직 확인하거나 수행하지 않았다.
 - 첫 화면은 지도 탐색이다. 지역·업종 선택 후 분석 요청을 실행하면 결과를 표시한다.

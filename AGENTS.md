@@ -54,6 +54,7 @@
 
 - 모든 Git 작업은 [팀 개발 규칙](docs/TEAM_RULES.md)의 Git Flow를 따른다. 작업 전 전문을 확인하며, 아래 요약 외의 커밋·협업·보안·테스트 규칙도 적용한다. 팀 규칙 변경은 팀 합의와 PR로 진행한다.
 - `main`과 `develop`에는 직접 커밋하거나 푸시하지 않는다. 모든 작업은 이슈 → 작업 브랜치 → 구현·검증 → PR → 리뷰 → 병합 순서로 진행한다. 한 브랜치·한 PR에는 하나의 목적만 담는다.
+- 2026-10-20 [브랜치 점검](docs/DEVELOPMENT.md#브랜치-점검-결과)에서 `main`/`develop`의 실제 원격 보호 규칙은 미설정으로 확인했다. 문서상 금지 규칙과 원격 강제 여부를 구분하고 [이슈 #11](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/11)의 적용/검증 전에는 보호 완료로 간주하지 않는다.
 - 일반 작업은 최신 `develop`에서 `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `test/*`, `chore/*`로 분기한다. 릴리스는 `develop`의 `release/*`, 긴급 수정은 `main`의 `hotfix/*`를 사용한다. 사용자 지정 팀 접두사를 따르며 가능한 경우 실제 이슈 번호를 포함한다.
 - 커밋과 PR 제목은 Conventional Commits를 따른다. PR 본문에는 팀 규칙의 필수 항목과 실제 확인 결과를 작성한다.
 - pull·rebase 전 작업 트리와 변경 목적을 확인한다. 변경을 무작정 stash하거나 공유 브랜치를 합의 없이 rebase하지 않는다. `--force-with-lease`는 개인 작업 브랜치를 rebase한 경우에만 허용한다. `--force`와 장기 브랜치 강제 푸시는 금지한다.

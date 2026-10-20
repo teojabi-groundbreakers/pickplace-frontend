@@ -2,6 +2,16 @@
 
 날짜는 Asia/Seoul 기준입니다. 현재 사양은 주제 문서에서 관리하며, 이 파일에는 요청과 결정·검증을 작업별로 남깁니다.
 
+## 2026-10-20 · 009 · 브랜치 재점검과 원격 보호 공백 확인
+
+- 요청/범위: 사용자가 현재 시점의 브랜치 점검 요청. `5681866`·깨끗한 feature에서 로컬/원격 목록·추적·ahead/behind·조상·worktree·열린 PR/리뷰·보호 규칙을 읽기 점검. fetch와 결과 문서화/이슈 등록 외에 삭제·이력 재작성·설정 적용·리뷰/병합은 수행하지 않음.
+- 구조 확인: fetch 후 main `e9c936c`, develop `56eefaa`, feature `5681866` 모두 upstream 대비 0/0이며 실제 GitHub 3개 브랜치 SHA도 일치. main→develop→feature 조상 관계, develop은 main보다 4커밋 앞·feature는 develop보다 27커밋 앞/뒤처짐 0 확인. 직전 26개 작업 커밋에 점검 기록 `5681866` 1개가 추가된 상태. 독립 로컬 읽기 검토도 같은 결과이며 추가 정리할 브랜치/worktree 없음. 문서 기록 커밋 추가와 점검 기준 시점은 구분.
+- PR/worktree: 열린 PR은 `develop` 대상 Draft #3 하나, head가 현재 feature와 일치하고 리뷰 0개. 등록 worktree는 현재 폴더 1개이며 prune dry-run 출력 없음. 삭제된 fix 로컬/원격 추적 참조는 없고 수정 커밋은 develop/feature에 보존. main 직접 동기화나 미병합 feature 삭제는 하지 않음.
+- 보호 설정 발견/후속: main/develop `protected=false`, 유효 branch rules 200/빈 배열·repository/상속 rulesets 200/빈 배열·classic protection 404를 함께 확인. 팀의 직접 푸시 금지/최소 1명 승인 규칙이 원격에서 강제되지 않음을 확인해 별도 [이슈 #11](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/11)에 목적·담당 역할/우선순위·완료 조건·제외 범위를 기록. 기존 #1에는 점검 진행/범위/의존성을 댓글로 남김. 적용 시점·관리자 예외·실제 규칙 검증은 저장소 관리자/팀장 후속이며 이번 설정 변경은 없음.
+- 문서/검증: DEVELOPMENT에 시점별 브랜치 표·근거·보호 후속을 추가하고 README·AGENTS에 연결. 기존 pnpm 실행 도구 오류에 따라 동일 package.json의 `npm run format`·`npm run format:check` 통과, 로컬 링크/앵커 181개·`git diff --check` 통과. 변경 diff를 직접 대조했으며 앱 코드·설정·환경변수·의존성·잠금 파일 변경 없음. 문서 작업이므로 앱 테스트·린트·빌드는 재실행하지 않음.
+- 공유/교차 검토: 독립 읽기 검토로 스냅샷/후속 커밋 구분·보호 근거·관리자 후속 범위를 확인. PR #3에 점검 결과·181개 링크 검사와 #11이 별도 설정 후속임을 반영하고 HTTP 성공 응답·검토 본문 일치·`develop` 대상·Draft 유지·#11 종료 참조 미포함을 확인.
+- 남은 사항: #11 원격 보호 설정, 실제 화면/BE/SGIS 계약 인수·팀 리뷰·develop 병합·feature/이슈 정리는 미완료. CI·보호·리뷰 완료로 과장하지 않으며 이번 점검 기록은 기존 feature의 후속 문서 커밋으로 공유.
+
 ## 2026-10-20 · 008 · Git Flow 커밋과 이슈·브랜치 정리
 
 - 요청/범위: ‘지금까지 작업들을 Git Flow 방식에 맞춰 커밋’ 요청. 시작 시 `feature/1-map-workspace`의 `e64b7df`는 원격과 같고 미커밋 변경이 없었음. 커밋·원격·PR/이슈·병합 후 브랜치 정리를 점검하고 이번 감사 기록만 별도 문서 커밋으로 추가. 앱 변경·리뷰 승인 대행·PR 병합은 수행하지 않음. CLI/API로 처리하여 Safari는 사용하지 않음.
