@@ -2,6 +2,14 @@
 
 날짜는 Asia/Seoul 기준입니다. 현재 사양은 주제 문서에서 관리하며, 이 파일에는 요청과 결정·검증을 작업별로 남깁니다.
 
+## 2026-11-04 · 001 · 서비스 상태와 서울 자치구 API 연동
+
+- 요청/근거: 사용자가 제공한 2026-11-01 BE 인계를 FE에 반영. 인계 기준 BE develop `3a96caa`는 상태 2개·자치구 목록, main `0de61ea`는 상태 2개를 지원함. 인접 작업공간에는 BE 체크아웃이 없어 해당 버전·배포 여부를 독립 확인하지 않았음.
+- 변경/결정: 새 API 세 개에만 `data/error + meta` 래퍼·요청 ID·5자리 문자열 코드를 적용. 이용 가이드의 선택적 확인 영역에서 생존·DB 준비·자치구 목록을 독립 표시하며, 빈 목록·장애·경로 오류·타임아웃과 재시도를 구분. 데모 분석과 기존 카탈로그·분석 계약은 유지. 기본 비활성화 및 로컬 프록시를 설정으로 제공.
+- Git Flow: 기존 [지도 이슈 #1](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/1)과 독립인 [이슈 #12](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/12)를 등록. 최신 FE `origin/develop` `56eefaa`에서 `feature/12-service-api` 별도 worktree를 생성. 원본 feature의 부분 결과·연구용 성장률 미커밋 변경은 이동·스테이징하지 않았음.
+- 검증: `pnpm test` 10파일 54개, `pnpm lint`·`pnpm format:check`·`pnpm build`와 로컬 문서 링크·`git diff --check` 통과. 루프백 모의 BE와 Vite 개발 프록시를 실행해 세 `/api` 경로가 중복 없이 전달되고 200·503 및 요청 ID가 유지됨을 확인. 이 실험은 공유 BE 연결 검증이 아님.
+- 남은 사항: 공유 BE 주소·실행 커밋·DB 적재·브라우저 실서버 공동 검수, 팀 리뷰·병합·운영 배포. 미구현 행정동·업종·현황·AI와 후순위 SGIS는 [서비스 API 연동](SERVICE_API.md)에 구분.
+
 ## 2026-10-07 · 001 · FE 기본 구성 및 분석 화면 구현
 
 - 요청/범위: 사용자가 제시한 FE 업무 목록을 바탕으로 프로그램 기본 사항 구현.

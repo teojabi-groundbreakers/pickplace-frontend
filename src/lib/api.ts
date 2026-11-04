@@ -6,22 +6,70 @@ import { isAnalysis, isCatalog } from './validation'
 export class ApiError extends Error {
   status: number
   code: string
+  requestId?: string
 
-  constructor(message: string, status = 0, code = 'REQUEST_FAILED') {
+  constructor(message: string, status = 0, code = 'REQUEST_FAILED', requestId?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.requestId = requestId
   }
 }
 
-export async function requestJson<T>(
+interface ApiEnvelope<T> {
+  data: T
+  meta: { requestId: string }
+}
+
+export interface ApiResult<T> {
+  data: T
+  requestId: string
+}
+
+type ResponseFormat = 'raw' | 'envelope'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function hasRequestId(value: unknown): value is { requestId: string } {
+  return isRecord(value) && isNonemptyString(value.requestId)
+}
+
+function readRequestId(body: unknown, response: Response): string | undefined {
+  if (isRecord(body) && hasRequestId(body.meta)) return body.meta.requestId
+
+  const header = response.headers.get('X-Request-Id')
+  return isNonemptyString(header) ? header : undefined
+}
+
+function readErrorCode(body: unknown, format: ResponseFormat): string {
+  if (!isRecord(body)) return 'REQUEST_FAILED'
+
+  if (format === 'envelope') {
+    return isRecord(body.error) && isNonemptyString(body.error.code)
+      ? body.error.code
+      : 'REQUEST_FAILED'
+  }
+
+  return typeof body.code === 'string' ? body.code : 'REQUEST_FAILED'
+}
+
+async function requestValidatedJson<T>(
   path: string,
   validate: (value: unknown) => value is T,
-  options: RequestInit = {},
+  options: RequestInit,
+  format: ResponseFormat,
 ): Promise<T> {
+  const timeout = AbortSignal.timeout(config.requestTimeout)
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
+
   try {
-    const timeout = AbortSignal.timeout(config.requestTimeout)
     const response = await fetch(`${config.apiBaseUrl}${path}`, {
       ...options,
       headers: {
@@ -29,33 +77,46 @@ export async function requestJson<T>(
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
         ...options.headers,
       },
-      signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
+      signal,
     })
-    const body: unknown = await response.json().catch(() => null)
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (signal.aborted || !(error instanceof SyntaxError)) throw error
+      return null
+    })
+
+    signal.throwIfAborted()
+
+    const requestId = format === 'envelope' ? readRequestId(body, response) : undefined
 
     if (!response.ok) {
-      const code =
-        body && typeof body === 'object' && 'code' in body && typeof body.code === 'string'
-          ? body.code
-          : 'REQUEST_FAILED'
+      const code = readErrorCode(body, format)
       throw new ApiError(
-        code === 'INSUFFICIENT_DATA'
+        format === 'raw' && code === 'INSUFFICIENT_DATA'
           ? '분석할 데이터가 충분하지 않습니다.'
           : `서버가 요청을 처리하지 못했습니다. (${response.status})`,
         response.status,
         code,
+        requestId,
       )
     }
 
     if (!validate(body)) {
-      throw new ApiError('서버 응답 형식을 확인해 주세요.', response.status, 'INVALID_RESPONSE')
+      throw new ApiError(
+        '서버 응답 형식을 확인해 주세요.',
+        response.status,
+        'INVALID_RESPONSE',
+        requestId,
+      )
     }
 
     return body
   } catch (error) {
     if (error instanceof ApiError) throw error
-    if (options.signal?.aborted) throw error
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
+    if (options.signal?.aborted && signal.reason === options.signal.reason) throw error
+    if (
+      (timeout.aborted && signal.reason === timeout.reason) ||
+      (error instanceof DOMException && error.name === 'TimeoutError')
+    ) {
       throw new ApiError('응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.', 0, 'TIMEOUT')
     }
 
@@ -65,6 +126,26 @@ export async function requestJson<T>(
       'NETWORK_ERROR',
     )
   }
+}
+
+export function requestJson<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit = {},
+): Promise<T> {
+  return requestValidatedJson(path, validate, options, 'raw')
+}
+
+export async function requestEnvelopeJson<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit = {},
+): Promise<ApiResult<T>> {
+  const isEnvelope = (value: unknown): value is ApiEnvelope<T> =>
+    isRecord(value) && hasRequestId(value.meta) && validate(value.data)
+
+  const { data, meta } = await requestValidatedJson(path, isEnvelope, options, 'envelope')
+  return { data, requestId: meta.requestId }
 }
 
 export async function getCatalog(signal?: AbortSignal): Promise<Catalog> {
