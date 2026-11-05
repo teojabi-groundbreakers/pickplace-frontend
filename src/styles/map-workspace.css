@@ -1,4 +1,7 @@
 .map-workspace-shell main {
+  --result-panel-gap: 24px;
+  --result-toggle-height: 44px;
+  --result-toggle-spacing: 10px;
   position: relative;
   height: calc(100dvh - var(--topbar-height));
   min-height: 380px;
@@ -10,6 +13,10 @@
 
 .map-workspace-shell .footer {
   display: none;
+}
+
+.map-canvas {
+  --map-control-bottom: 28px;
 }
 
 .map-canvas,
@@ -203,10 +210,19 @@
 
 .map-canvas .map-label {
   top: auto;
-  bottom: 68px;
+  bottom: var(--map-control-bottom);
   left: 24px;
   right: auto;
-  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  max-width: min(320px, calc(100% - 190px));
+  overflow-wrap: anywhere;
+}
+
+.map-canvas .map-label.has-layers {
+  bottom: 68px;
 }
 
 .map-canvas .kakao-zoom {
@@ -226,11 +242,12 @@
 .map-query-center {
   position: absolute;
   z-index: 500;
-  bottom: 28px;
+  bottom: var(--map-control-bottom);
   right: 24px;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   padding: 11px 12px;
   background: #fff;
   border: 1px solid #d8e1d0;
@@ -452,12 +469,13 @@
 
 .map-results-toggle {
   position: absolute;
-  top: 78px;
-  right: 24px;
+  top: var(--result-panel-gap);
+  right: var(--result-panel-gap);
   z-index: 950;
   display: flex;
   align-items: center;
   gap: 7px;
+  min-height: var(--result-toggle-height);
   padding: 11px 14px;
   border: 1px solid #d8e1d0;
   border-radius: 8px;
@@ -465,14 +483,15 @@
   color: var(--color-brand);
   box-shadow: 0 2px 12px #23351c15;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .map-analysis-panel {
   position: absolute;
   z-index: 900;
-  top: 128px;
-  right: 24px;
-  bottom: 24px;
+  top: calc(var(--result-panel-gap) + var(--result-toggle-height) + var(--result-toggle-spacing));
+  right: var(--result-panel-gap);
+  bottom: var(--result-panel-gap);
   width: min(600px, calc(100% - 472px));
   min-width: 350px;
   padding: 0 20px 20px;
@@ -567,24 +586,53 @@
 }
 
 @media (max-width: 900px) {
-  .map-analysis-panel {
-    top: auto;
-    right: 16px;
-    left: 16px;
-    bottom: 16px;
-    width: auto;
-    max-height: 53%;
-    padding-inline: 16px;
+  .map-workspace-shell main {
+    --result-panel-gap: 16px;
   }
 
   .map-results-toggle {
-    top: auto;
-    bottom: 80px;
-    right: 16px;
+    top: calc(var(--mobile-search-bottom, 142px) + var(--result-toggle-spacing));
+  }
+
+  .map-analysis-panel {
+    top: calc(
+      var(--mobile-search-bottom, 142px) + var(--result-toggle-height) +
+        var(--result-toggle-spacing) + var(--result-toggle-spacing)
+    );
+    right: var(--result-panel-gap);
+    left: var(--result-panel-gap);
+    bottom: var(--result-panel-gap);
+    width: auto;
+    padding-inline: 16px;
+  }
+
+  .map-canvas:has(~ .map-results-toggle) .map-search-filters {
+    max-height: max(60px, calc(100dvh - var(--topbar-height) - 430px));
+  }
+
+  .map-canvas .map-search-overlay:has(input[aria-expanded='true']) {
+    z-index: 1000;
+  }
+
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-stage .kakao-zoom,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-stage .map-recenter,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-stage .map-query-center,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-stage .map-label,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .kakao-region-marker,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .kakao-place-marker,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-region-lookup,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-region-drawer,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-bottom,
+  .map-canvas:has(~ .map-analysis-panel:not([hidden])) .map-retry {
+    visibility: hidden;
   }
 }
 
 @media (max-width: 760px) {
+  .map-canvas {
+    --map-control-bottom: 20px;
+  }
+
   .map-search-overlay {
     top: 14px;
     left: 14px;
@@ -634,8 +682,11 @@
 
   .map-canvas .map-label {
     left: 14px;
+    max-width: calc(100% - 170px);
+  }
+
+  .map-canvas .map-label.has-layers {
     bottom: 66px;
-    max-width: calc(100% - 90px);
   }
 
   .map-canvas .kakao-zoom {
@@ -650,7 +701,6 @@
 
   .map-query-center {
     right: 14px;
-    bottom: 20px;
     font-size: 11px;
   }
 

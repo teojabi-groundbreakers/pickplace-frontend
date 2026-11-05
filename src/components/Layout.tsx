@@ -13,7 +13,6 @@ import {
   Menu,
   X,
 } from 'lucide-react'
-import { config } from '../lib/config'
 import type { ReactNode } from 'react'
 
 const pageTitles: Record<string, string> = {
@@ -175,11 +174,6 @@ export function Layout({ children, savedCount }: { children: ReactNode; savedCou
             <span>{page}</span>
           </div>
           <div className="topbar-right">
-            <span className="data-status">
-              <i />
-              {config.demoMode ? '데모 데이터' : 'API 연동 모드'}
-            </span>
-            <span className="topbar-divider" />
             <Link
               to="/guide"
               aria-label="이용 가이드"

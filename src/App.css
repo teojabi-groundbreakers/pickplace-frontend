@@ -337,26 +337,6 @@
   color: #899180;
 }
 
-.data-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 10px;
-}
-
-.data-status i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #82a66c;
-}
-
-.topbar-divider {
-  width: 1px;
-  height: 18px;
-  background: #e8eae4;
-}
-
 .topbar-right a {
   display: flex;
 }
@@ -2132,14 +2112,6 @@ td {
 
   .topbar-right {
     gap: 12px;
-  }
-
-  .topbar-divider {
-    display: none;
-  }
-
-  .data-status {
-    font-size: 9px;
   }
 
   main {

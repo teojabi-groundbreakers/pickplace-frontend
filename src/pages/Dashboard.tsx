@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useSearchParams } from 'react-router'
 import { ArrowDownToLine, Bookmark, ChevronRight, MapPin, PanelRightOpen, X } from 'lucide-react'
 import type { Analysis, AnalysisRequest, Catalog, DemoScenario } from '../types/analysis'
@@ -45,7 +54,43 @@ export function Dashboard({
   const [dismissedState, setDismissedState] = useState<AnalysisState | null>(null)
   const panelOpen = state.status !== 'idle' && dismissedState !== state
   const panelToggle = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
   const allRegions = useMemo(() => catalogRegions(catalog), [catalog])
+
+  useLayoutEffect(() => {
+    const main = panelRef.current?.closest('main')
+    if (!main) return
+
+    let overlay: HTMLElement | null = null
+    const update = () => {
+      if (!overlay) return
+      const overlayRect = overlay.getBoundingClientRect()
+      if (overlayRect.height <= 0) return
+      const bottom = Math.max(0, Math.ceil(overlayRect.bottom - main.getBoundingClientRect().top))
+      main.style.setProperty('--mobile-search-bottom', `${bottom}px`)
+    }
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    resizeObserver?.observe(main)
+    const observeOverlay = () => {
+      const current = main.querySelector<HTMLElement>('.map-search-overlay')
+      if (current !== overlay) {
+        if (overlay) resizeObserver?.unobserve(overlay)
+        overlay = current
+        if (overlay) resizeObserver?.observe(overlay)
+      }
+      update()
+    }
+    const mutationObserver = new MutationObserver(observeOverlay)
+    mutationObserver.observe(main, { childList: true, subtree: true })
+    window.addEventListener('resize', update)
+    observeOverlay()
+    return () => {
+      resizeObserver?.disconnect()
+      mutationObserver.disconnect()
+      window.removeEventListener('resize', update)
+      main.style.removeProperty('--mobile-search-bottom')
+    }
+  }, [])
 
   useEffect(() => {
     if (config.demoMode && (scenario === 'success' || scenario === 'empty' || scenario === 'error'))
@@ -253,6 +298,7 @@ export function Dashboard({
         </button>
       )}
       <aside
+        ref={panelRef}
         id="map-analysis-panel"
         className="map-analysis-panel"
         aria-label="분석 결과 패널"

@@ -224,15 +224,9 @@ export function AreaMap({
           />
         )}
         {!mapFailed && (
-          <div className="map-label">
+          <div className={`map-label${data.places.length > 0 ? ' has-layers' : ''}`}>
             {data.regionName}
-            <small>
-              {exploreRegion
-                ? '주변 점포명과 시설을 지도에서 살펴보세요'
-                : data.isDemo
-                  ? '분석 경계·시설 마커는 예시입니다'
-                  : '행정동 표시를 눌러 지역을 선택하세요'}
-            </small>
+            {!exploreRegion && data.isDemo && <small>분석 경계·시설 마커는 예시입니다</small>}
             {!lookup && boundaryStatus}
           </div>
         )}
@@ -321,13 +315,9 @@ export function AreaMap({
           )}
         </section>
       )}
-      <div className="map-bottom">
-        <span className="map-selection-hint">
-          {data.places.length > 0
-            ? '분석 지역의 시설 레이어'
-            : '우클릭으로 행정동 조회 · 모바일에서는 중심 위치 조회'}
-        </span>
-        {data.places.length > 0 && (
+      {data.places.length > 0 && (
+        <div className="map-bottom">
+          <span className="map-selection-hint">분석 지역의 시설 레이어</span>
           <div className="map-layers">
             {layers.map((layer) => (
               <button
@@ -346,8 +336,8 @@ export function AreaMap({
               </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {regions.length > 0 && (
         <details className="map-region-drawer">
           <summary>표시된 행정동 {regions.length}곳</summary>
