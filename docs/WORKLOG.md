@@ -1,5 +1,11 @@
 # 작업 이력
 
+## 2026-11-06 · 002 · PR #17 develop 병합 충돌 해소
+
+- 요청/범위: PR #17의 현재 base(`develop`) 기준 병합 충돌을 해소한다.
+- 변경/결정: `origin/develop`을 병합하면서 `AGENTS.md`, `docs/README.md`, `docs/WORKLOG.md`의 문서 충돌을 수동 정리했다. 문서 색인에는 기존 연구 문서 항목과 `REFERENCE_CODES.md` 항목을 함께 유지하고, 작업 이력은 2026-11-06의 두 작업 기록을 모두 보존했다.
+- 검증/남은 사항: `pnpm format:check`, `pnpm lint`, `pnpm test`(14파일 73테스트), `pnpm build`를 통과했다. 최초 실행 시 `pnpm` 미설치 및 `node_modules` 부재를 확인해 `corepack`으로 `pnpm`을 활성화하고 `pnpm install --frozen-lockfile` 후 재검증했다. merge commit 반영 후 새 HEAD에서 CI 재평가가 필요하다.
+
 ## 2026-11-06 · 001 · 연구용 결과 표시 분리 준비
 
 - 요청/범위: 미커밋 FE 변경을 팀 규칙에 맞게 [연구용 결과 이슈 #14](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/14)로 분리한다. 실제 BE·AI 호출과 목록·지도 위치 연동은 포함하지 않는다.
