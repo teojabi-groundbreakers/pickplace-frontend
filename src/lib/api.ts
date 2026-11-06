@@ -212,5 +212,5 @@ export async function analyze(
     throw new ApiError('요청 조건과 분석 결과가 일치하지 않습니다.', 200, 'INVALID_RESPONSE')
   }
 
-  return { ...result, source: 'api' }
+  return result
 }

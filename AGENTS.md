@@ -11,20 +11,23 @@
 
 ## 주요 참조
 
-| 문서                                               | 용도                                                                        |
-| -------------------------------------------------- | --------------------------------------------------------------------------- |
-| [docs/README.md](docs/README.md)                   | 전체 문서 색인과 현재 확인할 제한 사항                                      |
-| [docs/TEAM_RULES.md](docs/TEAM_RULES.md)           | 사용자 제공 팀 개발 규칙 전문: Git Flow, 이슈·커밋·PR·리뷰·릴리스·완료 기준 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)         | 코드 형식, Git 추적·제외 기준, 문서 작성·갱신·검증 규칙                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)               | 구현 현황, 실행·검증 명령, 환경변수, 구조, 배포 방법, 남은 연계 작업        |
-| [docs/API.md](docs/API.md)                         | BE 연동 계약 초안, 데이터 단위, 점수 의미, 오류 처리                        |
-| [docs/SERVICE_API.md](docs/SERVICE_API.md)         | 서비스 상태·서울 자치구 API의 인계 기준, 설정, 검수 범위                    |
-| [docs/BACKEND_HANDOFF.md](docs/BACKEND_HANDOFF.md) | FE 기준 BE 작업·우선순위·산출물·인수 조건·미합의 계약 확인                  |
-| [docs/REGION_CODES.md](docs/REGION_CODES.md)       | 지역코드 출처·자릿수·H/B 구분, 데모 매칭과 백엔드 전달 기준                 |
-| [docs/MAPS.md](docs/MAPS.md)                       | 지도 흐름·카카오맵 설정·마우스/터치 조작·오류·재시도와 연결 점검            |
-| [docs/SGIS.md](docs/SGIS.md)                       | SGIS 후순위 검토·메인 BE 연계안·공식 명세·재개 시 확인할 항목               |
-| [docs/BOUNDARY_ONLINE.md](docs/BOUNDARY_ONLINE.md) | 파일 없는 SGIS 중계 권장안·공식 대안 비교·인증/코드/CRS·실증 제한           |
-| [docs/WORKLOG.md](docs/WORKLOG.md)                 | 작업별 요청·결정·변경·검증·미완료 사항                                      |
+| 문서                                                                     | 용도                                                                        |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [docs/README.md](docs/README.md)                                         | 전체 문서 색인과 현재 확인할 제한 사항                                      |
+| [docs/TEAM_RULES.md](docs/TEAM_RULES.md)                                 | 사용자 제공 팀 개발 규칙 전문: Git Flow, 이슈·커밋·PR·리뷰·릴리스·완료 기준 |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)                               | 코드 형식, Git 추적·제외 기준, 문서 작성·갱신·검증 규칙                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                                     | 구현 현황, 실행·검증 명령, 환경변수, 구조, 배포 방법, 남은 연계 작업        |
+| [docs/API.md](docs/API.md)                                               | BE 연동 계약 초안, 데이터 단위, 점수 의미, 오류 처리                        |
+| [docs/SERVICE_API.md](docs/SERVICE_API.md)                               | 서비스 상태·서울 자치구 API의 인계 기준, 설정, 검수 범위                    |
+| [docs/BACKEND_HANDOFF.md](docs/BACKEND_HANDOFF.md)                       | FE 기준 BE 작업·우선순위·산출물·인수 조건·미합의 계약 확인                  |
+| [docs/REFERENCE_CODES.md](docs/REFERENCE_CODES.md)                       | BE 기준정보의 버전 고정 지역 코드 대응과 제한                               |
+| [docs/REGION_CODES.md](docs/REGION_CODES.md)                             | 지역코드 출처·자릿수·H/B 구분, 데모 매칭과 백엔드 전달 기준                 |
+| [docs/MAPS.md](docs/MAPS.md)                                             | 지도 흐름·카카오맵 설정·마우스/터치 조작·오류·재시도와 연결 점검            |
+| [docs/SGIS.md](docs/SGIS.md)                                             | SGIS 후순위 검토·메인 BE 연계안·공식 명세·재개 시 확인할 항목               |
+| [docs/BOUNDARY_ONLINE.md](docs/BOUNDARY_ONLINE.md)                       | 파일 없는 SGIS 중계 권장안·공식 대안 비교·인증/코드/CRS·실증 제한           |
+| [docs/FRONTEND_REVIEW_20261104.md](docs/FRONTEND_REVIEW_20261104.md)     | FE·AI 연동 검토                                                             |
+| [docs/RESEARCH_FORECAST_CONTRACT.md](docs/RESEARCH_FORECAST_CONTRACT.md) | 연구용 분기 성장률·부분 결과 계약 초안                                      |
+| [docs/WORKLOG.md](docs/WORKLOG.md)                                       | 작업별 요청·결정·변경·검증·미완료 사항                                      |
 
 ## 유지할 주요 결정
 

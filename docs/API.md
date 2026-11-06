@@ -4,6 +4,8 @@
 
 백엔드 개발의 우선순위·산출물·현재 FE 제약·인수 시나리오는 [백엔드 인계 문서](BACKEND_HANDOFF.md)에 있습니다. 이 문서는 요청·응답 상세 계약의 원본으로 유지합니다.
 
+2026-11-04 추가된 분기별 연구용 성장률과 부분 결과의 상세 매핑은 [연구용 계약 초안](RESEARCH_FORECAST_CONTRACT.md)을 참고합니다. 실제 BE·AI 연결과 팀 승인은 아직 완료되지 않았습니다.
+
 ## GET /catalog
 
 시·도 → 시·군·구 → 행정동, 업종 대분류 → 세부 업종 목록을 반환합니다. `src/types/analysis.ts`의 `Catalog` 형식을 따릅니다.
@@ -134,23 +136,24 @@ FE 목록 매칭으로 지역을 차단하거나 이름·거리로 다른 코드
 
 200 응답은 `src/types/analysis.ts`의 `Analysis` 전체 구조를 반환합니다. 실행 가능한 전체 예시는 `src/data/demo.ts`의 `createDemoAnalysis()`에 있습니다.
 
-| 필드                                 | 의미 / 단위                                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| id, request                          | 분석 식별자 및 요청 조건                                                                               |
-| regionName, industryName             | 화면용 지역·업종 명칭                                                                                  |
-| period                               | `YYYY.MM` 기준 월                                                                                      |
-| analyzedAt                           | 시간대가 포함된 ISO 8601 시각                                                                          |
-| source                               | `api` (FE는 API 응답을 항상 api로 표기)                                                                |
-| scores.overall / growth / risk / fit | `{value: 0~100, grade: string, description: string}`                                                   |
-| factors                              | `{name, description, contribution}` · 기여도는 부호 있는 점수                                          |
-| trends                               | 월 오름차순, 최소 1개. `{month: YYYY-MM, sales, population, stores, openings, closures, averageSales}` |
-| trends.sales / averageSales          | 점포당 월평균 매출, 만원                                                                               |
-| trends.population                    | 일평균 유동인구, 명                                                                                    |
-| trends.stores / openings / closures  | 점포·개업·폐업 수, 개                                                                                  |
-| competition                          | `{name, local, average, unit}` · 선택 지역과 상위 비교 지역의 같은 단위 지표                           |
-| map                                  | `{center: [위도, 경도], boundary: [위도, 경도][], places: [...]}`                                      |
-| map.places                           | `{id, name, type: competitor\|transport\|facility, position: [위도, 경도]}`                            |
-| summary / recommendations            | AI 진단 문장 / 권장 확인 사항 배열                                                                     |
+| 필드                                 | 의미 / 단위                                                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| id, request                          | 분석 식별자 및 요청 조건                                                                                                        |
+| regionName, industryName             | 화면용 지역·업종 명칭                                                                                                           |
+| period                               | `YYYY.MM` 기준 월 또는 `YYYYQn` 기준 분기                                                                                       |
+| analyzedAt                           | 시간대가 포함된 ISO 8601 시각                                                                                                   |
+| source                               | `api` 또는 `demo`, API 응답의 값을 유지                                                                                         |
+| scores.overall / growth / risk / fit | `{value: 0~100, grade: string, description: string}` 또는 null                                                                  |
+| factors                              | `{name, description, contribution}` · 기여도는 부호 있는 점수                                                                   |
+| trends                               | 월 오름차순, 빈 배열 허용. 각 수치는 null 허용. `{month: YYYY-MM, sales, population, stores, openings, closures, averageSales}` |
+| trends.sales / averageSales          | 점포당 월평균 매출, 만원                                                                                                        |
+| trends.population                    | 일평균 유동인구, 명                                                                                                             |
+| trends.stores / openings / closures  | 점포·개업·폐업 수, 개                                                                                                           |
+| competition                          | `{name, local, average, unit}` · 선택 지역과 상위 비교 지역의 같은 단위 지표                                                    |
+| map                                  | `{center: [위도, 경도], boundary: [위도, 경도][], places: [...]}`                                                               |
+| map.places                           | `{id, name, type: competitor\|transport\|facility, position: [위도, 경도]}`                                                     |
+| summary / recommendations            | AI 진단 문장 / 권장 확인 사항 배열                                                                                              |
+| researchForecast                     | 선택적 연구용 분기 성장률과 기준일·모델·경고. [상세 계약](RESEARCH_FORECAST_CONTRACT.md)                                        |
 
 위험도는 **높을수록 위험**, 나머지 점수는 높을수록 긍정적입니다. 등급·문구는 BE/AI 값을 그대로 표시합니다. 선택 지역의 상위 비교 지역을 매출 차트의 지역 평균으로 사용합니다. 경계는 빈 배열일 수 있으며, 이때 중심점을 표시합니다. 시설 목록 및 요인·비교·추천 목록도 빈 배열을 허용합니다. 점수/수치/좌표 범위와 필수 필드는 런타임에 검증하며 요청 조건과 다른 결과는 거부합니다.
 

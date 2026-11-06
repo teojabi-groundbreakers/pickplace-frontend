@@ -20,13 +20,20 @@ describe('API 계약 및 오류 처리', () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(demoCatalog)))
     expect(await getCatalog()).toEqual(demoCatalog)
     fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify(createDemoAnalysis(defaultRequest))),
+      new Response(JSON.stringify({ ...createDemoAnalysis(defaultRequest), source: 'api' })),
     )
     expect((await analyze(defaultRequest)).source).toBe('api')
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/analyses',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(defaultRequest) }),
     )
+  })
+
+  it('API 응답이 명시한 데모 출처를 실제 결과로 바꾸지 않는다', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(createDemoAnalysis(defaultRequest))),
+    )
+    expect((await analyze(defaultRequest)).source).toBe('demo')
   })
 
   it('데이터 부족 응답 코드를 보존한다', async () => {
@@ -111,7 +118,7 @@ describe('응답 검증', () => {
         scores: { ...result.scores, risk: { ...result.scores.risk, value: 120 } },
       }),
     ).toBe(false)
-    expect(isAnalysis({ ...result, trends: [] })).toBe(false)
+    expect(isAnalysis({ ...result, trends: [] })).toBe(true)
     expect(isAnalysis({ ...result, map: { ...result.map, center: [120, 127] } })).toBe(false)
     expect(isCatalog({ cities: [], categories: [] })).toBe(false)
     expect(

@@ -875,6 +875,32 @@ h1 {
   overflow: hidden;
 }
 
+.research-forecast {
+  margin: 16px 0;
+  padding-bottom: 16px;
+}
+
+.research-forecast > p,
+.research-forecast > ul {
+  margin: 0 20px 10px;
+  color: #4c5d50;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.research-forecast > ul {
+  padding-left: 20px;
+}
+
+.research-forecast li + li {
+  margin-top: 8px;
+}
+
+.research-forecast li p,
+.research-forecast li ul {
+  margin: 6px 0 0;
+}
+
 .panel-header {
   display: flex;
   align-items: center;

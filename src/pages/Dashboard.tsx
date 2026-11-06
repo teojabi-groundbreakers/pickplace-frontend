@@ -22,6 +22,7 @@ import { MapSearch } from '../components/MapSearch'
 import { catalogRegions } from '../lib/catalogRegions'
 import { ScoreCards } from '../components/ScoreCards'
 import { TrendChart } from '../components/TrendChart'
+import { ResearchForecast } from '../components/ResearchForecast'
 import { Factors, Summary, Competition } from '../components/Insights'
 import { Badge, Button, EmptyState } from '../components/ui'
 
@@ -393,8 +394,19 @@ export function Dashboard({
               </div>
             )}
             <ScoreCards analysis={result} />
+            {result.researchForecast && <ResearchForecast data={result.researchForecast} />}
             <div className="primary-grid">
-              <TrendChart trends={result.trends} />
+              {result.trends.length > 0 ? (
+                <TrendChart trends={result.trends} />
+              ) : (
+                <section
+                  className="panel trend-panel"
+                  aria-label="상권 추이"
+                >
+                  <h2>상권 데이터 한눈에</h2>
+                  <p className="no-data">제공된 추이 데이터가 없습니다.</p>
+                </section>
+              )}
               <Summary analysis={result} />
             </div>
             <div className="result-factors">
