@@ -3,10 +3,12 @@ import { Check, X } from 'lucide-react'
 import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router'
 import type { Analysis, Catalog } from './types/analysis'
 import { getCatalog } from './lib/api'
+import { config } from './lib/config'
 import { persistReports, readReports } from './lib/reports'
 import { useAnalysis } from './lib/useAnalysis'
 import { Layout } from './components/Layout'
 import { Dashboard } from './pages/Dashboard'
+import { ReferenceDashboard } from './pages/ReferenceDashboard'
 import { Saved } from './pages/Saved'
 import { Guide } from './pages/Guide'
 import { About } from './pages/About'
@@ -22,6 +24,7 @@ function Workspace() {
   const [reports, setReports] = useState(readReports)
   const [toast, setToast] = useState('')
   useEffect(() => {
+    if (!config.demoMode) return
     const controller = new AbortController()
     getCatalog(controller.signal)
       .then((data) => {
@@ -62,18 +65,27 @@ function Workspace() {
         <Route
           path="/"
           element={
-            <Dashboard
-              catalog={catalog}
-              catalogError={catalogError}
-              retryCatalog={() => {
-                setCatalogError('')
-                setCatalogAttempt((value) => value + 1)
-              }}
-              state={analysis.state}
-              run={analysis.run}
-              saved={reports}
-              onSave={save}
-            />
+            config.demoMode ? (
+              <Dashboard
+                catalog={catalog}
+                catalogError={catalogError}
+                retryCatalog={() => {
+                  setCatalogError('')
+                  setCatalogAttempt((value) => value + 1)
+                }}
+                state={analysis.state}
+                run={analysis.run}
+                saved={reports}
+                onSave={save}
+              />
+            ) : (
+              <ReferenceDashboard
+                state={analysis.state}
+                run={analysis.run}
+                saved={reports}
+                onSave={save}
+              />
+            )
           }
         />
         <Route
