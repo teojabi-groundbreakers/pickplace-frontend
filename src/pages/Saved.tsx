@@ -51,7 +51,11 @@ export function Saved({
             >
               <div className="saved-card-top">
                 <Badge tone={report.source === 'demo' ? 'neutral' : 'green'}>
-                  {report.source === 'demo' ? '예시 분석' : '상권 분석'}
+                  {report.source === 'demo'
+                    ? '예시 분석'
+                    : report.researchForecast
+                      ? '연구용 추정'
+                      : '상권 분석'}
                 </Badge>
                 <button
                   className="icon-button"
@@ -64,11 +68,17 @@ export function Saved({
               <h2>{report.regionName}</h2>
               <p>{report.industryName}</p>
               <div className="saved-score">
-                <strong>
-                  {report.scores.overall.value}
-                  <small>점</small>
-                </strong>
-                <Badge>{report.scores.overall.grade}등급</Badge>
+                {report.scores.overall ? (
+                  <>
+                    <strong>
+                      {report.scores.overall.value}
+                      <small>점</small>
+                    </strong>
+                    <Badge>{report.scores.overall.grade}등급</Badge>
+                  </>
+                ) : (
+                  <span>종합점수 미제공</span>
+                )}
                 <span>{report.period} 기준</span>
               </div>
               <div className="saved-card-bottom">

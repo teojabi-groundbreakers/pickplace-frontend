@@ -40,81 +40,107 @@ export function ScoreCards({ analysis }: { analysis: Analysis }) {
           </span>
         </div>
         <div className="overall-body">
-          <div
-            className="score-ring"
-            style={{ background: `conic-gradient(#d5e6b3 ${overall.value}%, #ffffff20 0)` }}
-          >
-            <div>
-              <strong>{overall.value}</strong>
-              <span>/ 100</span>
-            </div>
-          </div>
-          <div className="overall-description">
-            <span className="grade">
-              {overall.grade}등급 <ArrowUpRight size={15} />
-            </span>
-            <p>{overall.description}</p>
-          </div>
+          {overall ? (
+            <>
+              <div
+                className="score-ring"
+                style={{ background: `conic-gradient(#d5e6b3 ${overall.value}%, #ffffff20 0)` }}
+              >
+                <div>
+                  <strong>{overall.value}</strong>
+                  <span>/ 100</span>
+                </div>
+              </div>
+              <div className="overall-description">
+                <span className="grade">
+                  {overall.grade}등급 <ArrowUpRight size={15} />
+                </span>
+                <p>{overall.description}</p>
+              </div>
+            </>
+          ) : (
+            <p className="no-data">종합점수는 아직 제공되지 않습니다.</p>
+          )}
         </div>
-        <div className="score-footer">
-          <span className="status-dot" />
-          상권의 여러 지표를 종합한 점수
-        </div>
+        {overall && (
+          <div className="score-footer">
+            <span className="status-dot" />
+            상권의 여러 지표를 종합한 점수
+          </div>
+        )}
       </article>
       <article className="score-card">
         <div className="card-kicker">
           <BarChart3 size={16} />
-          성장 가능성<Badge>{growth.grade}</Badge>
+          성장 가능성{growth && <Badge>{growth.grade}</Badge>}
         </div>
-        <div className="metric-main">
-          <div>
-            <strong>{growth.value}</strong>
-            <span>점</span>
-          </div>
-          <ScoreMeter value={growth.value} />
-        </div>
-        <p>{growth.description}</p>
-        <div className="metric-caption">높을수록 성장 가능성이 높아요</div>
+        {growth ? (
+          <>
+            <div className="metric-main">
+              <div>
+                <strong>{growth.value}</strong>
+                <span>점</span>
+              </div>
+              <ScoreMeter value={growth.value} />
+            </div>
+            <p>{growth.description}</p>
+            <div className="metric-caption">높을수록 성장 가능성이 높아요</div>
+          </>
+        ) : (
+          <p className="no-data">성장 점수는 아직 제공되지 않습니다.</p>
+        )}
       </article>
       <article className="score-card">
         <div className="card-kicker">
           <ShieldCheck size={16} />
-          위험도<Badge tone="orange">{risk.grade}</Badge>
+          위험도{risk && <Badge tone="orange">{risk.grade}</Badge>}
         </div>
-        <div className="metric-main">
-          <div>
-            <strong>{risk.value}</strong>
-            <span>점</span>
-          </div>
-          <ScoreMeter
-            value={risk.value}
-            color="#c9aa7f"
-          />
-        </div>
-        <p>{risk.description}</p>
-        <div className="metric-caption">낮을수록 안정적인 상권이에요</div>
+        {risk ? (
+          <>
+            <div className="metric-main">
+              <div>
+                <strong>{risk.value}</strong>
+                <span>점</span>
+              </div>
+              <ScoreMeter
+                value={risk.value}
+                color="#c9aa7f"
+              />
+            </div>
+            <p>{risk.description}</p>
+            <div className="metric-caption">낮을수록 안정적인 상권이에요</div>
+          </>
+        ) : (
+          <p className="no-data">위험 점수는 아직 제공되지 않습니다.</p>
+        )}
       </article>
       <article className="score-card">
         <div className="card-kicker">
           <Target size={16} />
-          업종 적합도<Badge>{fit.grade}</Badge>
+          업종 적합도{fit && <Badge>{fit.grade}</Badge>}
         </div>
-        <div className="metric-main">
-          <div>
-            <strong>{fit.value}</strong>
-            <span>점</span>
-          </div>
-          <span className="fit-symbol">
-            <Target
-              size={35}
-              strokeWidth={1.2}
-            />
-          </span>
-        </div>
-        <p>{fit.description}</p>
-        <div className="fit-track">
-          <span style={{ width: `${fit.value}%` }} />
-        </div>
+        {fit ? (
+          <>
+            <div className="metric-main">
+              <div>
+                <strong>{fit.value}</strong>
+                <span>점</span>
+              </div>
+              <span className="fit-symbol">
+                <Target
+                  size={35}
+                  strokeWidth={1.2}
+                />
+              </span>
+            </div>
+            <p>{fit.description}</p>
+            <div className="fit-track">
+              <span style={{ width: `${fit.value}%` }} />
+            </div>
+          </>
+        ) : (
+          <p className="no-data">업종 적합도는 아직 제공되지 않습니다.</p>
+        )}
       </article>
     </div>
   )
