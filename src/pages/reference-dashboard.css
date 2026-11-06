@@ -1,0 +1,45 @@
+.reference-search .reference-feedback {
+  color: #68775f;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reference-search .reference-feedback:not(:empty) {
+  padding: 0 16px 8px;
+}
+
+.reference-search .reference-feedback p {
+  margin: 4px 0;
+}
+
+.reference-search .reference-feedback [role='alert'] {
+  color: var(--color-danger, #a33131);
+}
+
+.reference-search .reference-feedback button {
+  padding: 2px 0;
+  color: var(--color-brand-dark);
+  background: transparent;
+  font: inherit;
+  text-decoration: underline;
+}
+
+.reference-search .reference-location-feedback {
+  margin: 0;
+  padding: 0 16px 10px;
+  color: #68775f;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.reference-search .reference-location-feedback p {
+  margin: 0 0 4px;
+}
+
+.reference-search .reference-location-feedback button {
+  padding: 2px 0;
+  color: var(--color-brand-dark);
+  background: transparent;
+  font: inherit;
+  text-decoration: underline;
+}
