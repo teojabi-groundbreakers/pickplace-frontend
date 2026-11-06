@@ -10,6 +10,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 | [DEVELOPMENT.md](DEVELOPMENT.md)         | 코드 형식, Git 추적·제외, 작업·문서화·검증 규칙                                           | 코드·Git 설정 변경, 작업 시작 및 마무리 |
 | [FRONTEND.md](FRONTEND.md)               | 현재 구현, 실행, 환경변수, 구조, 테스트, 정적 배포                                        | 프로젝트 실행 및 FE 구성 변경           |
 | [API.md](API.md)                         | BE 연동 계약 초안, 데이터 단위, 응답 검증, 오류                                           | BE·AI 연동 및 데이터 모델 변경          |
+| [SERVICE_API.md](SERVICE_API.md)         | 구현된 상태·자치구 API, 독립 검수, 배포 확인 범위                                         | BE 최초 연결과 상태·자치구 조회 확인    |
 | [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md) | FE 기준 BE 작업 우선순위·산출물·완료 조건·미합의 항목·인수 시나리오                       | 백엔드 개발 착수·계약 협의·실서버 연동  |
 | [REGION_CODES.md](REGION_CODES.md)       | 지역코드 출처·계층·자릿수, H/B 구분, 전달·데모 매칭 기준                                  | 지역 데이터 연계·코드 확인 및 보정      |
 | [MAPS.md](MAPS.md)                       | 지도 우선 흐름, 카카오맵 단일 설정·조작·오류·재시도, 행정동 경계 출처·독립 조회·자체 표기 | 지도 및 지역 선택·경계 연계 변경        |
@@ -19,6 +20,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 
 ## 현재 기준
 
+- 2026-11-06 기준 서비스 상태·자치구 [PR #13](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/13)은 `develop`에 병합됐다. 지도 [PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3)은 Draft·리뷰와 병합 대기 중이다. 실제 공유 BE 연결과 운영 배포 확인은 별도다.
 - 모든 Git 작업은 [팀 개발 규칙](TEAM_RULES.md)의 Git Flow를 따른다. FE 적용 절차는 [개발 규칙](DEVELOPMENT.md#git-flow-적용)에 있다.
 - 2026-10-20 [브랜치 재점검](DEVELOPMENT.md#브랜치-점검-결과)에서 main/develop/feature 3개와 원격 동기화·조상 관계, worktree 1개가 정상임을 확인했다. `main`/`develop`의 원격 보호 규칙은 미설정으로 확인해 [이슈 #11](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/11)에 등록했다. 구조 점검 완료와 보호 설정 적용 대기·Draft PR #3 리뷰/병합 대기를 구분한다.
 - 2026-10-20 [이슈 정리](DEVELOPMENT.md#이슈-목록과-통합-기준)에서 #7/#8/#9를 대표 #1로 통합해 닫았다. 앞선 Git 점검에서 리뷰/병합 대기를 이유로 다시 열어 중복 추적한 상태를 바로잡았다. 열린 이슈는 #1 검토 대기·#5 수정 대기·#10 SGIS 후순위·#11 관리자 설정 대기의 4개다. 미완료 조건은 #1·Draft PR #3에서 유지하고 기능 완료·리뷰/병합 완료로 처리하지 않았다.

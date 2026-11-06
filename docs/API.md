@@ -1,6 +1,6 @@
 # PickPlace FE · API 연동 계약 초안
 
-BE 스펙이 아직 제공되지 않아 작성한 초안입니다. BE 확정 시 `src/lib/api.ts`와 독립 경계의 `src/lib/regionBoundary.ts` 어댑터를 조정합니다. 모든 요청·응답은 JSON이며, 아래 경로는 `VITE_API_BASE_URL` 뒤에 붙습니다. 요청 제한 시간은 30초입니다.
+이 문서의 카탈로그·분석과 독립 경계는 기존 FE 계약 초안입니다. 2026-11-01 BE 인계에서 구현이 확인된 상태·자치구 API 세 개는 [서비스 API 연동](SERVICE_API.md)에서 별도로 다룹니다. 새 API의 공통 래퍼를 기존 카탈로그·분석의 응답 형식으로 적용하지 않습니다. BE 확정 시 `src/lib/api.ts`와 독립 경계의 `src/lib/regionBoundary.ts` 어댑터를 조정합니다. 모든 요청·응답은 JSON이며, 아래 경로는 `VITE_API_BASE_URL` 뒤에 붙습니다. 요청 제한 시간은 30초입니다.
 
 백엔드 개발의 우선순위·산출물·현재 FE 제약·인수 시나리오는 [백엔드 인계 문서](BACKEND_HANDOFF.md)에 있습니다. 이 문서는 요청·응답 상세 계약의 원본으로 유지합니다.
 

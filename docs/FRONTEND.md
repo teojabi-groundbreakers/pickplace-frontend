@@ -101,6 +101,10 @@ VITE_KAKAO_MAP_APP_KEY=발급받은_JavaScript_앱_키
 
 ## BE 연결
 
+현재 BE 인계에 맞춰 [서비스 API 확인](SERVICE_API.md)을 이용 가이드에 추가했습니다. 자치구를 확인할 때는 데모 분석을 유지한 채 `VITE_SERVICE_API_PREVIEW=true`를 사용합니다. `/catalog`와 `/analyses`가 구현된 서버는 별도 확인이 필요합니다.
+
+아래 설정은 기존 카탈로그·분석 계약을 제공하는 서버의 연결 예시입니다.
+
 `.env.local`에 아래를 설정하고 개발 서버를 재시작합니다. 배포 시에는 환경변수를 변경한 뒤 다시 빌드해야 합니다.
 
 ```dotenv

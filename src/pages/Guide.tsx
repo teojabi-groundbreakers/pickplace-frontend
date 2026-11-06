@@ -8,6 +8,7 @@ import {
   Target,
 } from 'lucide-react'
 import { Link } from 'react-router'
+import { ServiceApiPreview } from '../components/ServiceApiPreview'
 import { config } from '../lib/config'
 
 export function Guide() {
@@ -138,6 +139,7 @@ export function Guide() {
           기여도의 합이 종합점수와 같지는 않습니다.
         </p>
       </section>
+      {config.serviceApiPreview && <ServiceApiPreview />}
       {config.demoMode && (
         <section className="panel guide-data">
           <h2>화면 상태 확인</h2>
