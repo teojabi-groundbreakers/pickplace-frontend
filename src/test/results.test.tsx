@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createDemoAnalysis, defaultRequest } from '../data/demo'
@@ -26,6 +26,34 @@ describe('결과 컴포넌트', () => {
     await user.click(screen.getByRole('button', { name: '데이터 보기' }))
     expect(screen.getAllByRole('row')).toHaveLength(13)
     expect(screen.getByText('2025-10')).toBeInTheDocument()
+  })
+  it('기준값이 0이면 변화 없음이 아닌 계산 불가를 표시한다', () => {
+    const trends = analysis.trends.slice(-2).map((point) => ({ ...point }))
+    trends[0].sales = 0
+    trends[1].sales = 100
+    render(<TrendChart trends={trends} />)
+    expect(screen.getByText('계산 불가')).toBeInTheDocument()
+    expect(screen.queryByText('0.0%')).not.toBeInTheDocument()
+  })
+  it('추이 데이터가 없으면 차트 대신 안내를 표시한다', () => {
+    render(<TrendChart trends={[]} />)
+    expect(screen.getByText('표시할 추이 데이터가 없습니다.')).toBeInTheDocument()
+  })
+  it('지표 탭을 키보드로 선택하고 차트 지점을 활성화한다', async () => {
+    const user = userEvent.setup()
+    render(<TrendChart trends={analysis.trends} />)
+    const sales = screen.getByRole('tab', { name: '매출 추이' })
+    sales.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: '유동인구' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '유동인구' })).toHaveFocus()
+    await user.keyboard('{End}')
+    expect(screen.getByRole('tab', { name: '점포 변화' })).toHaveFocus()
+    await user.keyboard('{Home}')
+    expect(sales).toHaveFocus()
+    const firstPoint = screen.getAllByRole('button', { name: /\d{4}-\d{2}:/ })[0]
+    fireEvent.keyDown(firstPoint, { key: 'Enter' })
+    expect(firstPoint.querySelector('circle:last-child')).toHaveAttribute('r', '5')
   })
 })
 
