@@ -11,17 +11,18 @@
 
 ## 주요 참조
 
-| 문서                                               | 용도                                                                        |
-| -------------------------------------------------- | --------------------------------------------------------------------------- |
-| [docs/README.md](docs/README.md)                   | 전체 문서 색인과 현재 확인할 제한 사항                                      |
-| [docs/TEAM_RULES.md](docs/TEAM_RULES.md)           | 사용자 제공 팀 개발 규칙 전문: Git Flow, 이슈·커밋·PR·리뷰·릴리스·완료 기준 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)         | 코드 형식, Git 추적·제외 기준, 문서 작성·갱신·검증 규칙                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)               | 구현 현황, 실행·검증 명령, 환경변수, 구조, 배포 방법, 남은 연계 작업        |
-| [docs/API.md](docs/API.md)                         | BE 연동 계약 초안, 데이터 단위, 점수 의미, 오류 처리                        |
-| [docs/SERVICE_API.md](docs/SERVICE_API.md)         | 실제 서비스 상태·서울 자치구 API의 인계 기준, 설정, 검수 범위               |
-| [docs/REFERENCE_CODES.md](docs/REFERENCE_CODES.md) | BE 기준정보의 버전 고정 지역 코드 대응과 제한                               |
-| [docs/MAPS.md](docs/MAPS.md)                       | 지도 우선 흐름, 지도 공급자, 환경변수와 장애 복구                           |
-| [docs/WORKLOG.md](docs/WORKLOG.md)                 | 작업별 요청·결정·변경·검증·미완료 사항                                      |
+| 문서                                                                     | 용도                                                                        |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [docs/README.md](docs/README.md)                                         | 전체 문서 색인과 현재 확인할 제한 사항                                      |
+| [docs/TEAM_RULES.md](docs/TEAM_RULES.md)                                 | 사용자 제공 팀 개발 규칙 전문: Git Flow, 이슈·커밋·PR·리뷰·릴리스·완료 기준 |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)                               | 코드 형식, Git 추적·제외 기준, 문서 작성·갱신·검증 규칙                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                                     | 구현 현황, 실행·검증 명령, 환경변수, 구조, 배포 방법, 남은 연계 작업        |
+| [docs/API.md](docs/API.md)                                               | BE 연동 계약 초안, 데이터 단위, 점수 의미, 오류 처리                        |
+| [docs/SERVICE_API.md](docs/SERVICE_API.md)                               | 실제 서비스 상태·서울 자치구 API의 인계 기준, 설정, 검수 범위               |
+| [docs/REFERENCE_CODES.md](docs/REFERENCE_CODES.md)                       | BE 기준정보의 버전 고정 지역 코드 대응과 제한                               |
+| [docs/MAPS.md](docs/MAPS.md)                                             | 지도 우선 흐름, 지도 공급자, 환경변수와 장애 복구                           |
+| [docs/WORKLOG.md](docs/WORKLOG.md)                                       | 작업별 요청·결정·변경·검증·미완료 사항                                      |
+| [docs/RESEARCH_FORECAST_CONTRACT.md](docs/RESEARCH_FORECAST_CONTRACT.md) | 연구용 분기 성장률·부분 결과 계약 초안                                      |
 
 ## 유지할 주요 결정
 
