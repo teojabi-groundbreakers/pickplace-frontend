@@ -1,5 +1,11 @@
 # 작업 이력
 
+## 2026-11-06 · 002 · 분석 오류 코드와 요청 ID 보존
+
+- 요청/원인: [이슈 #20](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/20)의 실제 BE 오류 래퍼에서 분석 요청의 오류 코드와 요청 ID가 누락되어 데이터 부족이 일반 오류로 표시되는 문제를 확인했다.
+- 변경/결정: 기존 분석 성공 응답 형식은 유지하고 오류 응답의 중첩 코드·본문 또는 헤더 요청 ID를 보존한다. 서버 상세 메시지는 출력하지 않는다. 분석 상태 화면에는 요청 ID를 표시한다. [API 오류 계약](API.md#오류)을 갱신했다.
+- 검증과 남은 사항: 실제 로컬 테스트 기록은 세 프로젝트 밖 `PickPlace/LOCAL_INTEGRATION_TEST_20261105.md`에서 관리한다. 현재 BE 분석 API는 미구현이며 실제 분석 성공·BE 계약 승인·팀 리뷰·병합과 운영 배포는 미완료다.
+
 ## 2026-11-06 · 선택 지역 코드 대응 준비
 
 - 요청/범위: [이슈 #16](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/16)의 선택 지역 위치 확인을 위한 기준정보 코드 대응을 `develop` 기준으로 분리한다.

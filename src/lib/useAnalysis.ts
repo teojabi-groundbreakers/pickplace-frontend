@@ -25,7 +25,12 @@ export function useAnalysis() {
       setState({
         status: error instanceof ApiError && error.code === 'INSUFFICIENT_DATA' ? 'empty' : 'error',
         request,
-        message: error instanceof Error ? error.message : '분석 중 문제가 발생했습니다.',
+        message:
+          error instanceof ApiError && error.requestId
+            ? `${error.message} (요청 ID: ${error.requestId})`
+            : error instanceof Error
+              ? error.message
+              : '분석 중 문제가 발생했습니다.',
       })
     }
   }, [])
