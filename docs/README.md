@@ -11,6 +11,7 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 | [FRONTEND.md](FRONTEND.md)                                     | 현재 구현, 실행, 환경변수, 구조, 테스트, 정적 배포              | 프로젝트 실행 및 FE 구성 변경           |
 | [API.md](API.md)                                               | BE 연동 계약 초안, 데이터 단위, 응답 검증, 오류                 | BE·AI 연동 및 데이터 모델 변경          |
 | [SERVICE_API.md](SERVICE_API.md)                               | 구현된 상태·자치구 API, 독립 검수, 배포 확인 범위               | BE 최초 연결과 상태·자치구 조회 확인    |
+| [REFERENCE_CODES.md](REFERENCE_CODES.md)                       | BE 기준정보의 버전 고정 지역 코드 대응과 제한                   | 선택 지역의 위치 확인 준비              |
 | [MAPS.md](MAPS.md)                                             | 지도 우선 흐름, 공급자 선택·설정, 장애 복구                     | 지도 및 지역 선택 변경                  |
 | [WORKLOG.md](WORKLOG.md)                                       | 작업별 요청·변경·결정·검증·남은 사항                            | 진행 이력 및 다음 작업 확인             |
 | [FRONTEND_REVIEW_20261104.md](FRONTEND_REVIEW_20261104.md)     | FE·AI 연동 검토                                                 | 연구 연동 검토                          |
