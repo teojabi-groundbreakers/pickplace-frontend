@@ -1,9 +1,16 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { Analysis, AnalysisRequest, DemoScenario, IndustryCategory } from '../types/analysis'
 import type { MapRegion, MapViewData } from '../types/map'
 import type { AnalysisState } from '../lib/useAnalysis'
 import { useReferenceSearch } from '../lib/useReferenceSearch'
+import { config } from '../lib/config'
 import { ApiError } from '../lib/api'
+import { mapReferenceCode } from '../lib/referenceCodeMapping'
+import {
+  locateReferenceDistrict,
+  locateReferenceDong,
+  ReferenceLocationError,
+} from '../lib/locateReferenceDong'
 import { getAdministrativeDongs, getBusinessTypes, getDistricts } from '../lib/backendReference'
 import type { AdministrativeDong, BusinessType, District } from '../lib/backendReference'
 import { AnalysisPanel } from '../components/AnalysisPanel'
@@ -44,6 +51,8 @@ export function ReferenceDashboard({
   })
   const [searchActive, setSearchActive] = useState(false)
   const [locationState, setLocationState] = useState<LocationState>({ status: 'idle' })
+  const [locationAttempt, setLocationAttempt] = useState(0)
+  const locationRequest = useRef<AbortController | null>(null)
   const [lastCenter, setLastCenter] = useState<[number, number]>(initialCenter)
   const [districtCode, setDistrictCode] = useState('')
   const [dongCode, setDongCode] = useState('')
@@ -104,6 +113,82 @@ export function ReferenceDashboard({
     searchActive,
   )
 
+  const selectedDistrict =
+    districts.status === 'success'
+      ? districts.items.find((item) => item.districtCode === districtCode) || null
+      : null
+  const selectedDong =
+    dongs.status === 'success'
+      ? dongs.items.find(
+          (item) => item.dongCode === dongCode && item.districtCode === districtCode,
+        ) || null
+      : null
+
+  const dongListStatus = dongCode ? dongs.status : 'idle'
+
+  useEffect(() => {
+    if (!selectedDistrict || dongListStatus === 'loading') return
+    const controller = new AbortController()
+    const district = selectedDistrict
+    locationRequest.current = controller
+
+    async function findLocation() {
+      if (controller.signal.aborted) return
+      setLocationState({ status: 'loading' })
+      try {
+        let found
+        if (dongCode) {
+          const mapping = mapReferenceCode(district, selectedDong)
+          if (mapping.status !== 'available') {
+            setLocationState({
+              status: 'empty',
+              message: '선택한 지역의 위치를 확인할 수 없어요. 지도에서 직접 선택해 주세요.',
+            })
+            return
+          }
+          found = await locateReferenceDong(
+            district.districtName,
+            selectedDong!.dongName,
+            mapping.officialCode,
+            mapping.officialName,
+            config.kakaoMapAppKey,
+            controller.signal,
+          )
+        } else {
+          found = await locateReferenceDistrict(
+            district.districtName,
+            config.kakaoMapAppKey,
+            controller.signal,
+          )
+        }
+        if (controller.signal.aborted) return
+        const region: MapRegion = {
+          code: found.region.code,
+          name: found.region.region_3depth_name,
+          fullName: `${found.region.address_name} · ${found.placeName} 주변`,
+          center: found.center,
+        }
+        setLastCenter(found.center)
+        setExploreRegion(region)
+        setPointRegion(dongCode ? region : null)
+        setLocationState({ status: 'success' })
+      } catch (error) {
+        if (controller.signal.aborted) return
+        setLocationState({
+          status:
+            error instanceof ReferenceLocationError &&
+            (error.code === 'NOT_FOUND' || error.code === 'MISMATCH')
+              ? 'empty'
+              : 'error',
+          message: error instanceof Error ? error.message : '지역 위치를 찾지 못했어요.',
+        })
+      }
+    }
+
+    void Promise.resolve().then(findLocation)
+    return () => controller.abort()
+  }, [selectedDistrict, selectedDong, dongCode, dongListStatus, locationAttempt])
+
   const categories = useMemo<IndustryCategory[]>(() => {
     if (businessTypes.status !== 'success') return []
     return [
@@ -144,6 +229,7 @@ export function ReferenceDashboard({
   )
 
   const analyzeRegion = (region: MapRegion, nextIndustryCode: string) => {
+    locationRequest.current?.abort()
     setLocationState({ status: 'idle' })
     setLastCenter(region.center)
     setPointRegion(region)
@@ -175,6 +261,15 @@ export function ReferenceDashboard({
           regions={noRegions}
           selectedRegionCode={selectedRegionCode}
           disabled={state.status === 'loading'}
+          preserveViewport={Boolean(districtCode) && locationState.status !== 'success'}
+          onUserInteraction={() => {
+            if (locationState.status !== 'loading') return
+            locationRequest.current?.abort()
+            setLocationState({
+              status: 'error',
+              message: '지도 조작으로 위치 찾기를 중단했어요.',
+            })
+          }}
           onRegionSelect={() => {}}
           exploreRegion={exploreRegion}
           onExploreRegion={(region) => {
@@ -183,6 +278,7 @@ export function ReferenceDashboard({
             setDismissedState(state)
           }}
           onLookupStart={() => {
+            locationRequest.current?.abort()
             setLocationState({ status: 'idle' })
             setDismissedState(state)
           }}
@@ -205,7 +301,13 @@ export function ReferenceDashboard({
             businessTypeCode={industryCode}
             pointRegion={pointRegion}
             locationState={locationState}
-            onRetryLocation={() => {}}
+            onRetryLocation={() => {
+              if (dongCode && dongs.status === 'error') {
+                setDongs({ status: 'loading' })
+                setDongAttempt((value) => value + 1)
+              }
+              setLocationAttempt((value) => value + 1)
+            }}
             pending={state.status === 'loading'}
             onAnalyze={analyzeRegion}
             searchDongs={referenceSearch.items}
@@ -215,7 +317,8 @@ export function ReferenceDashboard({
             onSearchActiveChange={setSearchActive}
             onDistrictChange={(code) => {
               if (code === districtCode && !dongCode) return
-              setLocationState({ status: 'idle' })
+              locationRequest.current?.abort()
+              setLocationState({ status: code ? 'loading' : 'idle' })
               setDistrictCode(code)
               setPointRegion(null)
               setExploreRegion(null)
@@ -224,7 +327,8 @@ export function ReferenceDashboard({
             }}
             onDongChange={(code) => {
               if (code === dongCode) return
-              setLocationState({ status: 'idle' })
+              locationRequest.current?.abort()
+              setLocationState({ status: districtCode ? 'loading' : 'idle' })
               setPointRegion(null)
               setExploreRegion(null)
               setDongCode(code)
