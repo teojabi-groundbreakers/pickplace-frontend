@@ -253,3 +253,9 @@ VITE_KAKAO_MAP_APP_KEY=발급받은_JavaScript_앱_키
 ### 카카오 타임아웃 오탐 수정 · 2026-10-08
 
 [이슈 #2](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/2), `fix/2-kakao-tile-timeout`에서 기존 정상 로드 → 미세 이동 → 12초 후 대체 지도 전환 문제를 수정했습니다. [카카오 공식 이벤트 문서](https://apis.map.kakao.com/web/documentation/)의 `tilesloaded` 조건과 재현 테스트를 근거로 첫 로드의 제한 시간과 이후 이미지 오류 감지를 구분했습니다. 미세 이동 정상 유지·첫 타일 무응답·정상 로드 후 반복 이미지 오류·언마운트 정리를 테스트합니다. 실제 키의 허용 도메인 설정과 라이브 지도 검증은 별도로 필요합니다.
+
+### BE 목록 선택 위치 조회 준비
+
+[이슈 #16](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/16)에서 카카오 장소 검색 결과를 행정동 역조회로 확인하는 FE 함수를 준비했다. 동 선택은 BE 기준정보 스냅샷과 일치한 H10으로 확인하고, 구 선택은 서울 및 해당 구에 속하는 장소만 반환한다. 후보는 최대 세 개씩 확인하며, 검색 결과 없음·불일치·서비스 오류·시간 초과·요청 취소를 구분한다. 확인한 지점은 실제 장소 주변이며 공식 중심점이나 행정동 경계가 아니다.
+
+사용자 지도 조작이 진행 중인 위치 검색을 취소할 수 있도록 `AreaMap`과 `KakaoMap`에 입력 알림 및 자동 이동 보류 속성을 추가했다. 이 함수와 속성은 아직 목록 검색 화면에 연결하지 않았다. [이슈 #15](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/15)의 목록 화면이 준비된 뒤 연동과 요청 경합을 검증해야 한다. 기준정보의 출처·이용 조건과 갱신에 관한 [코드 대응 문서](REFERENCE_CODES.md)의 제한을 유지한다. 공유 서버·모바일 기기·운영 배포 및 팀 리뷰와 병합은 미검증이다.

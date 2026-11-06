@@ -29,6 +29,8 @@ export function AreaMap({
   onExploreRegion,
   children,
   onLookupStart,
+  onUserInteraction,
+  preserveViewport,
 }: {
   data: MapViewData
   regions: MapRegion[]
@@ -40,6 +42,8 @@ export function AreaMap({
   onExploreRegion: (region: MapRegion) => void
   children?: ReactNode
   onLookupStart?: () => void
+  onUserInteraction?: () => void
+  preserveViewport?: boolean
 }) {
   const request = useRef<AbortController | null>(null)
   const lookupContext = useMemo(
@@ -201,6 +205,8 @@ export function AreaMap({
     hideAnalysisBoundary:
       Boolean(lookup || exploreRegion) || isAdministrativeRegionCode(boundaryCode),
     onBoundaryFailure: handleBoundaryFailure,
+    onUserInteraction,
+    preserveViewport,
   }
 
   return (

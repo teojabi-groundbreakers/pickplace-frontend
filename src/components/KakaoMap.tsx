@@ -20,17 +20,34 @@ export function KakaoMap({
   administrativeBoundary,
   hideAnalysisBoundary,
   onBoundaryFailure,
+  onUserInteraction,
+  preserveViewport,
 }: MapRendererProps) {
   const container = useRef<HTMLDivElement>(null)
   const instance = useRef<KakaoMapInstance | null>(null)
   const [api, setApi] = useState<KakaoMapsApi | null>(null)
   const initialCenter = useRef(data.center)
+  const userInteraction = useRef(onUserInteraction)
   const failure = useRef(onFailure)
   const boundaryFailure = useRef(onBoundaryFailure)
   useEffect(() => {
     failure.current = onFailure
     boundaryFailure.current = onBoundaryFailure
-  }, [onFailure, onBoundaryFailure])
+    userInteraction.current = onUserInteraction
+  }, [onFailure, onBoundaryFailure, onUserInteraction])
+  useEffect(() => {
+    const element = container.current
+    if (!element) return
+    const onInput = () => userInteraction.current?.()
+    element.addEventListener('pointerdown', onInput, true)
+    element.addEventListener('touchstart', onInput, { capture: true, passive: true })
+    element.addEventListener('wheel', onInput, { capture: true, passive: true })
+    return () => {
+      element.removeEventListener('pointerdown', onInput, true)
+      element.removeEventListener('touchstart', onInput, true)
+      element.removeEventListener('wheel', onInput, true)
+    }
+  }, [])
   useEffect(() => {
     let cancelled = false
     let observer: ResizeObserver | undefined
@@ -242,7 +259,7 @@ export function KakaoMap({
   }, [api, data, regions, selectedRegionCode, disabled, onRegionSelect, lookupPoint])
   useEffect(() => {
     const map = instance.current
-    if (!api || !map) return
+    if (!api || !map || preserveViewport) return
     try {
       if (exploreRegion) {
         map.setCenter(new api.LatLng(...exploreRegion.center))
@@ -262,7 +279,15 @@ export function KakaoMap({
     } catch {
       failure.current()
     }
-  }, [api, data.center, data.boundary, regions, selectedRegionCode, exploreRegion])
+  }, [
+    api,
+    data.center,
+    data.boundary,
+    regions,
+    selectedRegionCode,
+    exploreRegion,
+    preserveViewport,
+  ])
   const recenter = () => {
     if (api) {
       instance.current?.setCenter(new api.LatLng(...data.center))
@@ -289,6 +314,7 @@ export function KakaoMap({
         <button
           aria-label="지도 확대"
           onClick={() => {
+            userInteraction.current?.()
             const map = instance.current
             if (map) map.setLevel(Math.max(1, map.getLevel() - 1))
           }}
@@ -298,6 +324,7 @@ export function KakaoMap({
         <button
           aria-label="지도 축소"
           onClick={() => {
+            userInteraction.current?.()
             const map = instance.current
             if (map) map.setLevel(Math.min(14, map.getLevel() + 1))
           }}
@@ -309,7 +336,10 @@ export function KakaoMap({
         type="button"
         className="map-recenter kakao-recenter"
         aria-label="선택 지역 중심으로 이동"
-        onClick={recenter}
+        onClick={() => {
+          userInteraction.current?.()
+          recenter()
+        }}
       >
         <LocateFixed size={17} />
       </button>

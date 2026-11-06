@@ -33,4 +33,6 @@ export interface MapRendererProps {
   administrativeBoundary?: RegionBoundary | null
   hideAnalysisBoundary?: boolean
   onBoundaryFailure?: () => void
+  onUserInteraction?: () => void
+  preserveViewport?: boolean
 }
