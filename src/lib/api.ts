@@ -53,13 +53,11 @@ function readRequestId(body: unknown, response: Response): string | undefined {
 function readErrorCode(body: unknown, format: ResponseFormat): string {
   if (!isRecord(body)) return 'REQUEST_FAILED'
 
-  if (format === 'envelope') {
-    return isRecord(body.error) && isNonemptyString(body.error.code)
-      ? body.error.code
-      : 'REQUEST_FAILED'
+  if (isRecord(body.error) && isNonemptyString(body.error.code)) {
+    return body.error.code
   }
 
-  return typeof body.code === 'string' ? body.code : 'REQUEST_FAILED'
+  return format === 'raw' && isNonemptyString(body.code) ? body.code : 'REQUEST_FAILED'
 }
 
 async function requestValidatedJson<T>(
@@ -88,7 +86,8 @@ async function requestValidatedJson<T>(
 
     signal.throwIfAborted()
 
-    const requestId = format === 'envelope' ? readRequestId(body, response) : undefined
+    const requestId =
+      format === 'envelope' || !response.ok ? readRequestId(body, response) : undefined
 
     if (!response.ok) {
       const code = readErrorCode(body, format)

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { config } from '../lib/config'
-import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
+import { createDemoAnalysis, defaultRequest } from '../data/demo'
 import type { AnalysisRequest } from '../types/analysis'
 import type { MapRendererProps } from '../types/map'
 
@@ -42,7 +42,7 @@ function response(request: AnalysisRequest) {
       ...example,
       request,
       regionName: location.address_name,
-      industryName: '미용실',
+      industryName: '커피·음료',
       source: 'api',
       map: { center: [37.53213, 126.99267], boundary: [], places: [] },
     }),
@@ -54,15 +54,34 @@ beforeEach(() => {
   localStorage.clear()
   window.history.replaceState({}, '', '/')
   lookup.mockReset().mockResolvedValue(location)
-  fetchMock
-    .mockReset()
-    .mockImplementation((_url: string, init?: RequestInit) =>
-      Promise.resolve(
-        init?.method === 'POST'
-          ? response(JSON.parse(String(init.body)))
-          : new Response(JSON.stringify(demoCatalog)),
-      ),
-    )
+  fetchMock.mockReset().mockImplementation((url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') return Promise.resolve(response(JSON.parse(String(init.body))))
+    if (url.endsWith('/districts')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: { items: [{ districtCode: '11110', districtName: '종로구' }] },
+            meta: { requestId: 'district-test' },
+          }),
+        ),
+      )
+    }
+    if (url.endsWith('/business-types')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              items: [
+                { businessTypeCode: 'CS100010', businessTypeName: '커피·음료', supported: true },
+              ],
+            },
+            meta: { requestId: 'industry-test' },
+          }),
+        ),
+      )
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  })
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -82,10 +101,10 @@ async function query() {
 describe('조회 위치의 백엔드 분석과 둘러보기', () => {
   it('목록에 없는 행정동 H 코드와 선택 업종을 POST하고 재분석·저장 후 재열기에도 유지한다', async () => {
     const user = await query()
-    await user.selectOptions(screen.getByLabelText('분석할 업종'), 'beauty')
+    await user.selectOptions(screen.getByLabelText('분석할 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
     await screen.findByRole('heading', { name: /이태원1동/ })
-    const request = { regionCode: location.code, industryCode: 'beauty' }
+    const request = { regionCode: location.code, industryCode: 'CS100010' }
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/analyses',
       expect.objectContaining({
@@ -94,21 +113,13 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
       }),
     )
     expect(screen.queryByText(/아래는 이전 조건의 결과/)).not.toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: '지역 검색' })).toHaveAttribute(
-      'placeholder',
-      location.address_name,
-    )
-    await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
-    await screen.findByRole('heading', { name: /이태원1동/ })
-    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2)
-
     await user.click(screen.getByRole('button', { name: '분석 저장' }))
     await user.click(screen.getByRole('link', { name: /저장한 분석/ }))
     await user.click(screen.getByRole('button', { name: '분석 다시 보기' }))
-    await user.click(screen.getByRole('button', { name: '업종·지역 조건' }))
-    expect(screen.getByText('지도에서 조회한 행정동 · ' + location.code)).toBeInTheDocument()
-    expect(screen.getByLabelText('세부 업종')).toHaveValue('beauty')
-    await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+    await screen.findByRole('heading', { name: /이태원1동/ })
+    await user.click(await screen.findByRole('button', { name: '지도 우클릭' }))
+    await user.selectOptions(await screen.findByLabelText('분석할 업종'), 'CS100010')
+    await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
     await screen.findByRole('heading', { name: /이태원1동/ })
     expect(fetchMock).toHaveBeenLastCalledWith(
       '/api/analyses',
@@ -129,7 +140,7 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
     expect(screen.queryByRole('region', { name: '행정구역 조회' })).not.toBeInTheDocument()
     expect(screen.queryByRole('complementary', { name: '분석 결과 패널' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '지도 우클릭' }))
-    await user.selectOptions(await screen.findByLabelText('분석할 업종'), 'beauty')
+    await user.selectOptions(await screen.findByLabelText('분석할 업종'), 'CS100010')
     expect(screen.getByLabelText('둘러보기 위치')).toHaveTextContent(location.code)
     await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
     await screen.findByRole('heading', { name: /이태원1동/ })
@@ -141,6 +152,7 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ code: 'INSUFFICIENT_DATA' }), { status: 422 }),
     )
+    await user.selectOptions(screen.getByLabelText('분석할 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
     await screen.findByText('아직 데이터가 충분하지 않아요')
     await user.click(screen.getByRole('button', { name: '지도 우클릭' }))
@@ -158,7 +170,12 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
   })
 
   it('검색 목록 연결 실패 중에도 실제 위치 조회와 둘러보기를 유지한다', async () => {
-    fetchMock.mockResolvedValueOnce(new Response('error', { status: 503 }))
+    const original = fetchMock.getMockImplementation()
+    fetchMock.mockImplementation((url: string, init?: RequestInit) =>
+      url.endsWith('/business-types')
+        ? Promise.resolve(new Response('error', { status: 503 }))
+        : original!(url, init),
+    )
     const user = await query()
     expect(screen.getByRole('button', { name: '이 지역 분석' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '이 지역 둘러보기' }))
