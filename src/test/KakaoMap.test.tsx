@@ -136,6 +136,64 @@ function wheel(target: HTMLElement, options: WheelEventInit) {
   return event
 }
 describe('카카오 지도 이벤트와 상태', () => {
+  it('실제 지도 입력과 확대 버튼은 알리고 SDK의 프로그램 확대 이벤트는 알리지 않는다', async () => {
+    const onUserInteraction = vi.fn()
+    render(
+      <KakaoMap
+        {...props}
+        onUserInteraction={onUserInteraction}
+      />,
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(onUserInteraction).not.toHaveBeenCalled()
+    act(() => sdk.handlers.get('zoom_start')?.())
+    expect(onUserInteraction).not.toHaveBeenCalled()
+
+    const map = screen.getByRole('region', { name: '성수동 카카오지도' })
+    act(() => map.dispatchEvent(new Event('pointerdown', { bubbles: true })))
+    expect(onUserInteraction).toHaveBeenCalledTimes(1)
+    wheel(map, { deltaY: -40 })
+    expect(onUserInteraction).toHaveBeenCalledTimes(2)
+    act(() => screen.getByRole('button', { name: '지도 확대' }).click())
+    expect(onUserInteraction).toHaveBeenCalledTimes(3)
+    act(() => screen.getByRole('button', { name: '지도 축소' }).click())
+    expect(onUserInteraction).toHaveBeenCalledTimes(4)
+    act(() => screen.getByRole('button', { name: '선택 지역 중심으로 이동' }).click())
+    expect(onUserInteraction).toHaveBeenCalledTimes(5)
+  })
+
+  it('사용자가 조작 중일 때 자동 이동을 보류하고, 허용되면 새 위치로 이동한다', async () => {
+    const view = render(
+      <KakaoMap
+        {...props}
+        preserveViewport
+      />,
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(sdk.setCenter).not.toHaveBeenCalled()
+    const nextData = { ...props.data, center: [37.58, 126.98] as [number, number] }
+    view.rerender(
+      <KakaoMap
+        {...props}
+        data={nextData}
+        preserveViewport
+      />,
+    )
+    expect(sdk.setCenter).not.toHaveBeenCalled()
+    view.rerender(
+      <KakaoMap
+        {...props}
+        data={nextData}
+        preserveViewport={false}
+      />,
+    )
+    expect(sdk.setCenter).toHaveBeenLastCalledWith(new LatLng(...nextData.center))
+  })
+
   it('둘러보기는 클릭 위치로 확대하고 이미 더 확대된 배율은 유지한다', async () => {
     const view = await mount()
     const region = {

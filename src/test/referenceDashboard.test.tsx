@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { config } from '../lib/config'
 import { useAnalysis } from '../lib/useAnalysis'
 import { createDemoAnalysis, defaultRequest } from '../data/demo'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferenceDashboard } from '../pages/ReferenceDashboard'
@@ -12,11 +12,25 @@ const api = vi.hoisted(() => ({
   getAdministrativeDongs: vi.fn(),
   getBusinessTypes: vi.fn(),
 }))
+const location = vi.hoisted(() => ({
+  locateReferenceDong: vi.fn(),
+  locateReferenceDistrict: vi.fn(),
+  mapReferenceCode: vi.fn(),
+}))
 const map = vi.hoisted(() => ({ latest: null as Record<string, unknown> | null }))
 
 vi.mock('../lib/backendReference', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/backendReference')>()),
   ...api,
+}))
+vi.mock('../lib/locateReferenceDong', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/locateReferenceDong')>()),
+  locateReferenceDong: location.locateReferenceDong,
+  locateReferenceDistrict: location.locateReferenceDistrict,
+}))
+vi.mock('../lib/referenceCodeMapping', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/referenceCodeMapping')>()),
+  mapReferenceCode: location.mapReferenceCode,
 }))
 vi.mock('../components/AreaMap', () => ({
   AreaMap: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => {
@@ -97,6 +111,13 @@ beforeEach(() => {
   api.getDistricts.mockResolvedValue(payload(districts))
   api.getBusinessTypes.mockResolvedValue(payload(businessTypes))
   api.getAdministrativeDongs.mockResolvedValue(payload(dongs))
+  location.mapReferenceCode.mockImplementation((_district, dong) =>
+    dong?.officialCodeStatus === 'LEGACY'
+      ? { status: 'unavailable', reason: 'LEGACY' }
+      : { status: 'available', officialCode: '1111051500', officialName: '청운효자동' },
+  )
+  location.locateReferenceDistrict.mockImplementation(() => new Promise(() => {}))
+  location.locateReferenceDong.mockImplementation(() => new Promise(() => {}))
 })
 
 afterEach(() => {
@@ -123,7 +144,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     expect(map.latest?.selectedRegionCode).toBe('')
     expect(JSON.stringify(map.latest)).not.toContain('1111051500')
     await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('지역의 위치를 확인한 뒤 분석해 주세요.')
+    expect(screen.getByRole('alert')).toHaveTextContent('위치를 확인하고 있어요')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -294,5 +315,421 @@ describe('실제 백엔드 기준정보 화면', () => {
     expect(screen.getByText(/검색 조건이 변경되었어요/)).toBeInTheDocument()
     expect((map.latest?.data as { boundary: unknown[] } | undefined)?.boundary).toEqual([])
     expect((map.latest?.data as { places: unknown[] } | undefined)?.places).toEqual([])
+  })
+
+  it('실제 역조회가 확인한 H 코드와 좌표로 이동하고 해당 H 코드를 분석에 사용한다', async () => {
+    const user = userEvent.setup()
+    const officialCode = '1111099900'
+    const verified = {
+      region: {
+        region_type: 'H',
+        code: officialCode,
+        address_name: '서울특별시 종로구 청운효자동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '청운효자동',
+      },
+      center: [37.582, 126.971],
+      placeName: '청운효자동 주민센터',
+    }
+    location.mapReferenceCode.mockReturnValue({
+      status: 'available',
+      officialCode,
+      officialName: '청운효자동',
+    })
+    location.locateReferenceDong.mockResolvedValue(verified)
+    const run = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ReferenceDashboard
+        state={{ status: 'idle' }}
+        run={run}
+        saved={[]}
+        onSave={() => {}}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({
+        code: officialCode,
+        center: verified.center,
+      }),
+    )
+    expect(location.locateReferenceDong).toHaveBeenCalledWith(
+      '종로구',
+      '청운효자동',
+      officialCode,
+      '청운효자동',
+      config.kakaoMapAppKey,
+      expect.any(AbortSignal),
+    )
+    await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
+    await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+    expect(run).toHaveBeenCalledWith({ regionCode: officialCode, industryCode: 'CS100010' })
+  })
+
+  it('이미 선택된 구를 다시 검색해 선택해도 위치와 동 목록을 유지한다', async () => {
+    const user = userEvent.setup()
+    const verified = {
+      region: {
+        region_type: 'H',
+        code: '1111051500',
+        address_name: '서울특별시 종로구 청운효자동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '청운효자동',
+      },
+      center: [37.572, 126.979],
+      placeName: '종로구청',
+    }
+    api.getAdministrativeDongs.mockImplementation((code: string) =>
+      Promise.resolve(payload(code === '11110' ? dongs : [])),
+    )
+    location.locateReferenceDistrict.mockResolvedValue(verified)
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
+    )
+    const input = screen.getByRole('combobox', { name: '지역 검색' })
+    await user.type(input, '종로구')
+    await waitFor(() =>
+      expect(screen.queryByText('행정동 목록을 불러오고 있어요.')).not.toBeInTheDocument(),
+    )
+    const requestsBeforeSelection = api.getAdministrativeDongs.mock.calls.length
+    await user.click(
+      within(await screen.findByRole('listbox', { name: '지역 검색 결과' })).getByRole('button', {
+        name: '종로구',
+      }),
+    )
+    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByRole('option', { name: '청운효자동' })).toBeInTheDocument()
+    expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center })
+    expect(location.locateReferenceDistrict).toHaveBeenCalledTimes(1)
+    expect(api.getAdministrativeDongs).toHaveBeenCalledTimes(requestsBeforeSelection)
+    expect(screen.queryByText('행정동 목록을 불러오고 있어요.')).not.toBeInTheDocument()
+    expect(screen.queryByText('선택한 지역의 위치를 찾고 있어요.')).not.toBeInTheDocument()
+  })
+
+  it('이미 선택된 동을 다시 검색해 선택해도 위치와 동 선택을 유지한다', async () => {
+    const user = userEvent.setup()
+    const verified = {
+      region: {
+        region_type: 'H',
+        code: '1111051500',
+        address_name: '서울특별시 종로구 청운효자동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '청운효자동',
+      },
+      center: [37.582, 126.971],
+      placeName: '청운효자동 주민센터',
+    }
+    api.getAdministrativeDongs.mockImplementation((code: string) =>
+      Promise.resolve(payload(code === '11110' ? dongs : [])),
+    )
+    location.locateReferenceDong.mockResolvedValue(verified)
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
+    )
+    const input = screen.getByRole('combobox', { name: '지역 검색' })
+    await user.type(input, '청운효자동')
+    await user.click(await screen.findByRole('button', { name: '종로구 청운효자동' }))
+    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByLabelText('행정동')).toHaveValue('11110515')
+    expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center })
+    expect(location.locateReferenceDong).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('선택한 지역의 위치를 찾고 있어요.')).not.toBeInTheDocument()
+  })
+
+  it('동이 선택된 상태에서 같은 구를 검색하면 동 선택을 해제하고 구청으로 이동한다', async () => {
+    const user = userEvent.setup()
+    const region = {
+      region_type: 'H',
+      code: '1111051500',
+      address_name: '서울특별시 종로구 청운효자동',
+      region_1depth_name: '서울특별시',
+      region_2depth_name: '종로구',
+      region_3depth_name: '청운효자동',
+    }
+    location.locateReferenceDistrict.mockResolvedValue({
+      region,
+      center: [37.572, 126.979],
+      placeName: '종로구청',
+    })
+    location.locateReferenceDong.mockResolvedValue({
+      region,
+      center: [37.582, 126.971],
+      placeName: '청운효자동 주민센터',
+    })
+    api.getAdministrativeDongs.mockImplementation((code: string) =>
+      Promise.resolve(payload(code === '11110' ? dongs : [])),
+    )
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: [37.582, 126.971] }),
+    )
+    await user.type(screen.getByRole('combobox', { name: '지역 검색' }), '종로구')
+    await user.click(
+      within(await screen.findByRole('listbox', { name: '지역 검색 결과' })).getByRole('button', {
+        name: '종로구',
+      }),
+    )
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: [37.572, 126.979] }),
+    )
+    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByLabelText('행정동')).toHaveValue('')
+    expect(screen.getByRole('option', { name: '청운효자동' })).toBeInTheDocument()
+    expect(screen.queryByText('행정동 목록을 불러오고 있어요.')).not.toBeInTheDocument()
+    expect(screen.queryByText('선택한 지역의 위치를 찾고 있어요.')).not.toBeInTheDocument()
+  })
+
+  it('자치구 선택은 검증된 구청 주변으로 이동하되 동 분석 위치로 취급하지 않는다', async () => {
+    const user = userEvent.setup()
+    const verified = {
+      region: {
+        region_type: 'H',
+        code: '1111051500',
+        address_name: '서울특별시 종로구 청운효자동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '청운효자동',
+      },
+      center: [37.572, 126.979],
+      placeName: '종로구청',
+    }
+    location.locateReferenceDistrict.mockResolvedValue(verified)
+    const run = vi.fn()
+    render(
+      <ReferenceDashboard
+        state={{ status: 'idle' }}
+        run={run}
+        saved={[]}
+        onSave={() => {}}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
+    )
+    await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
+    await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('검증된 공식 대응이 없는 동에는 이름이나 8자리 코드를 이용해 좌표를 추정하지 않는다', async () => {
+    const user = userEvent.setup()
+    location.mapReferenceCode.mockReturnValue({ status: 'unavailable', reason: 'VERSION_MISMATCH' })
+    const run = vi.fn()
+    render(
+      <ReferenceDashboard
+        state={{ status: 'idle' }}
+        run={run}
+        saved={[]}
+        onSave={() => {}}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    await screen.findByRole('button', { name: '위치 다시 찾기' })
+    expect(location.locateReferenceDong).not.toHaveBeenCalled()
+    expect(map.latest?.exploreRegion).toBeNull()
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('위치 검색 실패에는 지도 위치를 임의로 바꾸지 않으며 재시도할 수 있다', async () => {
+    const user = userEvent.setup()
+    const verified = {
+      region: {
+        region_type: 'H',
+        code: '1111051500',
+        address_name: '서울특별시 종로구 청운효자동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '청운효자동',
+      },
+      center: [37.582, 126.971],
+      placeName: '청운효자동 주민센터',
+    }
+    location.locateReferenceDong
+      .mockRejectedValueOnce(new Error('위치를 확인하지 못했어요.'))
+      .mockResolvedValueOnce(verified)
+    const run = vi.fn()
+    render(
+      <ReferenceDashboard
+        state={{ status: 'idle' }}
+        run={run}
+        saved={[]}
+        onSave={() => {}}
+      />,
+    )
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    await screen.findByRole('button', { name: '위치 다시 찾기' })
+    expect(map.latest?.exploreRegion).toBeNull()
+    await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
+    await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+    expect(run).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '위치 다시 찾기' }))
+    await waitFor(() =>
+      expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
+    )
+    expect(location.locateReferenceDong).toHaveBeenCalledTimes(2)
+  })
+
+  it('위치 조회 중 지도 조작은 조회를 취소하고 늦은 좌표가 사용자 화면을 덮지 않는다', async () => {
+    const user = userEvent.setup()
+    let resolveLocation!: (value: unknown) => void
+    location.locateReferenceDistrict.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLocation = resolve
+        }),
+    )
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    const previousCenter = (map.latest?.data as { center: number[] } | undefined)?.center
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByText('선택한 지역의 위치를 찾고 있어요.')
+    expect(map.latest?.preserveViewport).toBe(true)
+    const signal = location.locateReferenceDistrict.mock.calls[0][2] as AbortSignal
+    await user.click(screen.getByRole('button', { name: '지도 조작' }))
+    expect(signal.aborted).toBe(true)
+    expect(screen.getByText('지도 조작으로 위치 찾기를 중단했어요.')).toBeInTheDocument()
+    expect(map.latest?.preserveViewport).toBe(true)
+    await act(async () =>
+      resolveLocation({
+        region: {
+          region_type: 'H',
+          code: '1111051500',
+          address_name: '서울특별시 종로구 청운효자동',
+          region_1depth_name: '서울특별시',
+          region_2depth_name: '종로구',
+          region_3depth_name: '청운효자동',
+        },
+        center: [37.572, 126.979],
+        placeName: '종로구청',
+      }),
+    )
+    expect(map.latest?.exploreRegion).toBeNull()
+    expect(map.latest?.preserveViewport).toBe(true)
+    expect((map.latest?.data as { center: number[] } | undefined)?.center).toEqual(previousCenter)
+  })
+
+  it('행정동을 빠르게 바꾸면 이전 위치 조회를 취소하고 늦은 응답은 무시한다', async () => {
+    const user = userEvent.setup()
+    const second = { ...dongs[0], dongCode: '11110516', dongName: '다른동' }
+    api.getAdministrativeDongs.mockResolvedValue(payload([dongs[0], second]))
+    location.mapReferenceCode.mockImplementation((_district, dong) => ({
+      status: 'available',
+      officialCode: dong.dongCode === second.dongCode ? '1111051600' : '1111051500',
+      officialName: dong.dongName,
+    }))
+    let resolveFirst!: (value: unknown) => void
+    location.locateReferenceDong.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+    location.locateReferenceDong.mockResolvedValueOnce({
+      region: {
+        region_type: 'H',
+        code: '1111051600',
+        address_name: '서울특별시 종로구 다른동',
+        region_1depth_name: '서울특별시',
+        region_2depth_name: '종로구',
+        region_3depth_name: '다른동',
+      },
+      center: [37.59, 126.98],
+      placeName: '다른동 주민센터',
+    })
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
+    const firstSignal = location.locateReferenceDong.mock.calls[0][5] as AbortSignal
+    await user.selectOptions(screen.getByLabelText('행정동'), second.dongCode)
+    expect(firstSignal.aborted).toBe(true)
+    await waitFor(() => expect(map.latest?.exploreRegion).toMatchObject({ code: '1111051600' }))
+    await act(async () =>
+      resolveFirst({
+        region: {
+          region_type: 'H',
+          code: '1111051500',
+          address_name: '서울특별시 종로구 청운효자동',
+          region_1depth_name: '서울특별시',
+          region_2depth_name: '종로구',
+          region_3depth_name: '청운효자동',
+        },
+        center: [37.58, 126.97],
+        placeName: '청운효자동 주민센터',
+      }),
+    )
+    expect(map.latest?.exploreRegion).toMatchObject({ code: '1111051600' })
+  })
+
+  it('구 목록 장애와 업종의 빈 결과를 각각 표시하며 재시도한다', async () => {
+    const user = userEvent.setup()
+    api.getDistricts.mockRejectedValueOnce(new Error('구 목록 오류'))
+    api.getBusinessTypes.mockResolvedValueOnce(payload([]))
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    expect(await screen.findByText('구 목록 오류')).toBeInTheDocument()
+    expect(await screen.findByText('지원 업종이 없어요.')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: '종로구' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: '커피·음료' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '자치구 다시 불러오기' }))
+    expect(await screen.findByRole('option', { name: '종로구' })).toBeInTheDocument()
+  })
+
+  it('구를 빠르게 바꾸면 이전 동 요청을 취소하고 늦게 도착한 결과를 무시한다', async () => {
+    const user = userEvent.setup()
+    let resolveFirst!: (value: ReturnType<typeof payload<(typeof dongs)[number]>>) => void
+    api.getAdministrativeDongs.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+    api.getAdministrativeDongs.mockResolvedValueOnce(
+      payload([
+        { ...dongs[0], dongCode: '11140515', dongName: '중구 행정동', districtCode: '11140' },
+      ]),
+    )
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    const district = await screen.findByLabelText('자치구')
+    await screen.findByRole('option', { name: '종로구' })
+    await user.selectOptions(district, '11110')
+    const firstSignal = api.getAdministrativeDongs.mock.calls[0][1] as AbortSignal
+    await user.selectOptions(district, '11140')
+    expect(firstSignal.aborted).toBe(true)
+    expect(await screen.findByRole('option', { name: '중구 행정동' })).toBeInTheDocument()
+    await act(async () => resolveFirst(payload(dongs)))
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: '청운효자동' })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('option', { name: '중구 행정동' })).toBeInTheDocument()
   })
 })

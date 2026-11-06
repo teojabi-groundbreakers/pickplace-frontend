@@ -77,6 +77,13 @@ export interface KakaoMapsApi {
     removeListener(target: KakaoMap, type: string, callback: (event: KakaoMouseEvent) => void): void
   }
   services?: {
+    Places?: new () => {
+      keywordSearch(
+        query: string,
+        callback: (results: { place_name: string; x: string; y: string }[], status: string) => void,
+        options?: { size?: number },
+      ): void
+    }
     Geocoder: new () => {
       coord2RegionCode(
         longitude: number,
