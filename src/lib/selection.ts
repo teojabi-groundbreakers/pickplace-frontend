@@ -23,7 +23,7 @@ export function selectionFromRequest(catalog: Catalog, request: AnalysisRequest)
   return {
     cityCode: city?.code || '',
     districtCode: district?.code || '',
-    regionCode: district ? request.regionCode : '',
+    regionCode: request.regionCode,
     categoryCode: category?.code || '',
     industryCode: category ? request.industryCode : '',
   }
