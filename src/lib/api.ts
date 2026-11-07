@@ -1,0 +1,215 @@
+import type { Analysis, AnalysisRequest, Catalog, DemoScenario } from '../types/analysis'
+import { createDemoAnalysis, demoCatalog } from '../data/demo'
+import { config } from './config'
+import { isAnalysis, isCatalog } from './validation'
+import { catalogRegions } from './catalogRegions'
+import { findSupportedRegion } from './regionLookup'
+
+export class ApiError extends Error {
+  status: number
+  code: string
+  requestId?: string
+
+  constructor(message: string, status = 0, code = 'REQUEST_FAILED', requestId?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+    this.requestId = requestId
+  }
+}
+
+interface ApiEnvelope<T> {
+  data: T
+  meta: { requestId: string }
+}
+
+export interface ApiResult<T> {
+  data: T
+  requestId: string
+}
+
+type ResponseFormat = 'raw' | 'envelope'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonemptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function hasRequestId(value: unknown): value is { requestId: string } {
+  return isRecord(value) && isNonemptyString(value.requestId)
+}
+
+function readRequestId(body: unknown, response: Response): string | undefined {
+  if (isRecord(body) && hasRequestId(body.meta)) return body.meta.requestId
+
+  const header = response.headers.get('X-Request-Id')
+  return isNonemptyString(header) ? header : undefined
+}
+
+function readErrorCode(body: unknown, format: ResponseFormat): string {
+  if (!isRecord(body)) return 'REQUEST_FAILED'
+
+  if (isRecord(body.error) && isNonemptyString(body.error.code)) {
+    return body.error.code
+  }
+
+  return format === 'raw' && isNonemptyString(body.code) ? body.code : 'REQUEST_FAILED'
+}
+
+async function requestValidatedJson<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit,
+  format: ResponseFormat,
+): Promise<T> {
+  const timeout = AbortSignal.timeout(config.requestTimeout)
+  const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout
+
+  try {
+    const response = await fetch(`${config.apiBaseUrl}${path}`, {
+      ...options,
+      headers: {
+        Accept: 'application/json',
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers,
+      },
+      signal,
+    })
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (signal.aborted || !(error instanceof SyntaxError)) throw error
+      return null
+    })
+
+    signal.throwIfAborted()
+
+    const requestId =
+      format === 'envelope' || !response.ok ? readRequestId(body, response) : undefined
+
+    if (!response.ok) {
+      const code = readErrorCode(body, format)
+      throw new ApiError(
+        format === 'raw' && code === 'INSUFFICIENT_DATA'
+          ? '분석할 데이터가 충분하지 않습니다.'
+          : `서버가 요청을 처리하지 못했습니다. (${response.status})`,
+        response.status,
+        code,
+        requestId,
+      )
+    }
+
+    if (!validate(body)) {
+      throw new ApiError(
+        '서버 응답 형식을 확인해 주세요.',
+        response.status,
+        'INVALID_RESPONSE',
+        requestId,
+      )
+    }
+
+    return body
+  } catch (error) {
+    if (error instanceof ApiError) throw error
+    if (options.signal?.aborted && signal.reason === options.signal.reason) throw error
+    if (
+      (timeout.aborted && signal.reason === timeout.reason) ||
+      (error instanceof DOMException && error.name === 'TimeoutError')
+    ) {
+      throw new ApiError('응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.', 0, 'TIMEOUT')
+    }
+
+    throw new ApiError(
+      '서버에 연결할 수 없습니다. 네트워크 연결을 확인해 주세요.',
+      0,
+      'NETWORK_ERROR',
+    )
+  }
+}
+
+export function requestJson<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit = {},
+): Promise<T> {
+  return requestValidatedJson(path, validate, options, 'raw')
+}
+
+export async function requestEnvelopeJson<T>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit = {},
+): Promise<ApiResult<T>> {
+  const isEnvelope = (value: unknown): value is ApiEnvelope<T> =>
+    isRecord(value) && hasRequestId(value.meta) && validate(value.data)
+
+  const { data, meta } = await requestValidatedJson(path, isEnvelope, options, 'envelope')
+  return { data, requestId: meta.requestId }
+}
+
+export async function getCatalog(signal?: AbortSignal): Promise<Catalog> {
+  if (config.demoMode) return demoCatalog
+  return requestJson('/catalog', isCatalog, { signal })
+}
+
+export async function analyze(
+  request: AnalysisRequest,
+  signal?: AbortSignal,
+  scenario: DemoScenario = 'success',
+): Promise<Analysis> {
+  if (config.demoMode) {
+    await new Promise<void>((resolve, reject) => {
+      const cancel = () => {
+        clearTimeout(timer)
+        reject(new DOMException('취소된 요청입니다.', 'AbortError'))
+      }
+
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', cancel)
+        resolve()
+      }, 900)
+
+      if (signal?.aborted) cancel()
+      else signal?.addEventListener('abort', cancel, { once: true })
+    })
+
+    if (scenario === 'empty') {
+      throw new ApiError('분석 가능한 표본이 부족합니다.', 422, 'INSUFFICIENT_DATA')
+    }
+
+    if (scenario === 'error') {
+      throw new ApiError('일시적으로 분석 서버에 연결할 수 없습니다.', 503, 'SERVER_ERROR')
+    }
+
+    const region = findSupportedRegion(
+      catalogRegions(demoCatalog),
+      /^\d{8}$/.test(request.regionCode) ? `${request.regionCode}00` : request.regionCode,
+    )
+    if (!region) {
+      throw new ApiError(
+        '이 지역은 데모 분석 데이터가 없습니다. 실제 분석은 백엔드 연결 후 사용할 수 있어요.',
+        422,
+        'INSUFFICIENT_DATA',
+      )
+    }
+    const result = createDemoAnalysis({ ...request, regionCode: region.code })
+    return { ...result, request: { ...request } }
+  }
+
+  const result = await requestJson('/analyses', isAnalysis, {
+    method: 'POST',
+    body: JSON.stringify(request),
+    signal,
+  })
+
+  if (
+    result.request.regionCode !== request.regionCode ||
+    result.request.industryCode !== request.industryCode
+  ) {
+    throw new ApiError('요청 조건과 분석 결과가 일치하지 않습니다.', 200, 'INVALID_RESPONSE')
+  }
+
+  return result
+}
