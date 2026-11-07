@@ -1779,6 +1779,16 @@ td {
   margin-bottom: 22px;
 }
 
+.guide-data section + section {
+  margin-top: 16px;
+}
+
+.guide-data h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
 .guide-data p + p {
   margin-top: 12px;
 }
