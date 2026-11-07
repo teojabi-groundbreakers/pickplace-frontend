@@ -123,6 +123,7 @@ function candidatePosition(candidate: PlaceCandidate): [number, number] | null {
 
 /** Finds an actual place whose reverse-geocoded H region satisfies the caller's checks. */
 async function findVerifiedPlace(
+  province: string,
   district: string,
   queries: string[],
   matchesRegion: (region: KakaoRegionResult) => boolean,
@@ -182,7 +183,7 @@ async function findVerifiedPlace(
         if (
           region?.region_type === 'H' &&
           /^\d{10}$/.test(region.code) &&
-          region.region_1depth_name === '서울특별시' &&
+          region.region_1depth_name === province &&
           region.region_2depth_name === district &&
           typeof region.region_3depth_name === 'string' &&
           region.region_3depth_name.trim() &&
@@ -222,18 +223,21 @@ export function locateReferenceDong(
   officialName: string,
   appKey: string,
   signal: AbortSignal,
+  provinceName = '서울특별시',
 ): Promise<LocatedReferenceDong> {
+  const province = provinceName.trim()
   const district = districtName.trim()
   const dong = dongName.trim()
-  if (!district || !dong || !/^\d{10}$/.test(expectedH10)) {
+  if (!province || !district || !dong || !/^\d{10}$/.test(expectedH10)) {
     return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
   }
   const names = [...new Set([dong, officialName.trim()].filter(Boolean))]
   const queries = [
-    ...names.map((name) => `서울특별시 ${district} ${name} 주민센터`),
-    ...names.map((name) => `서울특별시 ${district} ${name}`),
+    ...names.map((name) => `${province} ${district} ${name} 주민센터`),
+    ...names.map((name) => `${province} ${district} ${name}`),
   ]
   return findVerifiedPlace(
+    province,
     district,
     queries,
     (region) => region.code === expectedH10,
@@ -247,11 +251,13 @@ export function locateReferenceDistrict(
   districtName: string,
   appKey: string,
   signal: AbortSignal,
+  provinceName = '서울특별시',
 ): Promise<LocatedReferenceDong> {
+  const province = provinceName.trim()
   const district = districtName.trim()
-  if (!district) {
+  if (!province || !district) {
     return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
   }
-  const queries = [`서울특별시 ${district}청`, `서울특별시 ${district}`]
-  return findVerifiedPlace(district, queries, () => true, appKey, signal)
+  const queries = [`${province} ${district}청`, `${province} ${district}`]
+  return findVerifiedPlace(province, district, queries, () => true, appKey, signal)
 }

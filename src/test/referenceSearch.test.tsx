@@ -7,6 +7,7 @@ type Props = Parameters<typeof ReferenceSearch>[0]
 
 function createProps(): Props {
   return {
+    provinces: [{ code: '11', name: '서울특별시' }],
     districts: {
       status: 'success',
       items: [{ districtCode: '11560', districtName: '영등포구' }],
@@ -16,6 +17,7 @@ function createProps(): Props {
       status: 'success',
       items: [{ businessTypeCode: 'CS100010', businessTypeName: '커피·음료', supported: true }],
     },
+    provinceCode: '11',
     districtCode: '',
     dongCode: '',
     businessTypeCode: 'CS100010',
@@ -35,6 +37,7 @@ function createProps(): Props {
     ],
     searchStatus: 'success',
     onRetryLocation: vi.fn(),
+    onProvinceChange: vi.fn(),
     onDistrictChange: vi.fn(),
     onDongChange: vi.fn(),
     onBusinessTypeChange: vi.fn(),
@@ -46,6 +49,21 @@ function createProps(): Props {
 }
 
 describe('서버 지역 검색 구성 요소', () => {
+  it('전달받은 시도 목록을 표시하고 선택한 코드를 전달한다', async () => {
+    const user = userEvent.setup()
+    const props = createProps()
+    props.provinces = [
+      { code: '11', name: '서울특별시' },
+      { code: '41', name: '경기도' },
+    ]
+    render(<ReferenceSearch {...props} />)
+
+    await user.click(screen.getByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('시·도'), '41')
+
+    expect(props.onProvinceChange).toHaveBeenCalledWith('41')
+  })
+
   it('행정동 검색 결과 선택 시 자치구와 원천 동 코드를 전달한다', async () => {
     const user = userEvent.setup()
     const props = createProps()

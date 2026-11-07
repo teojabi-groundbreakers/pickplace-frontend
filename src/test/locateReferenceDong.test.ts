@@ -65,6 +65,49 @@ describe('BE 행정동의 실제 위치 조회', () => {
     await expect(invoke()).rejects.toMatchObject({ code: 'MISMATCH' })
   })
 
+  it('선택한 시도와 시 산하 구를 검색하고 역조회한 H10 및 소속을 확인한다', async () => {
+    const otherRegion: KakaoRegionResult = {
+      ...region,
+      code: '9999999999',
+      address_name: '경기도 수원시 장안구 가상동',
+      region_1depth_name: '경기도',
+      region_2depth_name: '수원시 장안구',
+      region_3depth_name: '가상동',
+    }
+    mocks.lookup.mockResolvedValue(otherRegion)
+    const signal = new AbortController().signal
+
+    await expect(
+      locateReferenceDong(
+        '수원시 장안구',
+        '가상동',
+        '9999999999',
+        '가상동',
+        'test-key',
+        signal,
+        '경기도',
+      ),
+    ).resolves.toMatchObject({ region: otherRegion })
+    expect(mocks.keywordSearch).toHaveBeenCalledWith(
+      '경기도 수원시 장안구 가상동 주민센터',
+      expect.any(Function),
+      { size: 3 },
+    )
+
+    mocks.lookup.mockResolvedValue({ ...otherRegion, region_1depth_name: '서울특별시' })
+    await expect(
+      locateReferenceDong(
+        '수원시 장안구',
+        '가상동',
+        '9999999999',
+        '가상동',
+        'test-key',
+        signal,
+        '경기도',
+      ),
+    ).rejects.toMatchObject({ code: 'MISMATCH' })
+  })
+
   it('주민센터 후보가 다른 행정동에 있으면 다음 실제 후보를 역조회한다', async () => {
     const other = { place_name: '인근 시설', x: '126.897', y: '37.492' }
     mocks.keywordSearch.mockImplementation((_query, callback) => callback([other, center], 'OK'))
@@ -149,6 +192,32 @@ describe('자치구의 실제 위치 조회', () => {
     mocks.lookup.mockResolvedValue({ ...region, region_2depth_name: '구로구' })
     await expect(
       locateReferenceDistrict('영등포구', 'test-key', new AbortController().signal),
+    ).rejects.toMatchObject({ code: 'MISMATCH' })
+  })
+
+  it('서울 외 지역은 선택한 시도와 구에 속하는 후보만 허용한다', async () => {
+    const otherRegion: KakaoRegionResult = {
+      ...region,
+      code: '9999999999',
+      address_name: '경기도 수원시 장안구 가상동',
+      region_1depth_name: '경기도',
+      region_2depth_name: '수원시 장안구',
+      region_3depth_name: '가상동',
+    }
+    mocks.lookup.mockResolvedValue(otherRegion)
+    const signal = new AbortController().signal
+
+    await expect(
+      locateReferenceDistrict('수원시 장안구', 'test-key', signal, '경기도'),
+    ).resolves.toMatchObject({ region: otherRegion })
+    expect(mocks.keywordSearch).toHaveBeenCalledWith(
+      '경기도 수원시 장안구청',
+      expect.any(Function),
+      { size: 3 },
+    )
+    mocks.lookup.mockResolvedValue({ ...otherRegion, region_2depth_name: '수원시 권선구' })
+    await expect(
+      locateReferenceDistrict('수원시 장안구', 'test-key', signal, '경기도'),
     ).rejects.toMatchObject({ code: 'MISMATCH' })
   })
 

@@ -257,8 +257,9 @@ export function AreaMap({
           aria-label="행정구역 조회"
         >
           <div className="lookup-heading">
-            <span>
-              <MapPin size={16} />이 위치의 행정구역
+            <span aria-live="polite">
+              <MapPin size={16} />
+              {lookup.region?.address_name ?? '이 위치의 행정구역'}
             </span>
             <button
               type="button"
@@ -268,25 +269,18 @@ export function AreaMap({
               <X size={17} />
             </button>
           </div>
-          <div
-            role="status"
-            aria-live="polite"
-          >
-            {lookup.status === 'loading' && <p>행정동을 확인하고 있어요…</p>}
-            {lookup.status === 'empty' && (
-              <p>이 위치의 행정동을 찾지 못했어요. 다른 위치를 선택해 주세요.</p>
-            )}
-            {lookup.status === 'error' && <p>{lookup.message}</p>}
-            {lookup.region && (
-              <>
-                <strong>{lookup.region.address_name}</strong>
-                <p>행정동 코드 {lookup.region.code}</p>
-              </>
-            )}
-          </div>
-          <small>
-            위도 {lookup.point[0].toFixed(5)} · 경도 {lookup.point[1].toFixed(5)}
-          </small>
+          {lookup.status !== 'success' && (
+            <div
+              role="status"
+              aria-live="polite"
+            >
+              {lookup.status === 'loading' && <p>행정동을 확인하고 있어요…</p>}
+              {lookup.status === 'empty' && (
+                <p>이 위치의 행정동을 찾지 못했어요. 다른 위치를 선택해 주세요.</p>
+              )}
+              {lookup.status === 'error' && <p>{lookup.message}</p>}
+            </div>
+          )}
           {boundaryStatus}
           {lookup.region && (
             <RegionLookupActions

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AreaMap } from '../components/AreaMap'
@@ -123,7 +123,11 @@ describe('지도 위치의 행정구역 조회', () => {
     const view = render(<AreaMap {...props} />)
     await act(async () => kakao.onPointSelect?.([37.54, 127.05]))
     expect(lookup).toHaveBeenCalledWith([37.54, 127.05], '', expect.any(AbortSignal))
-    expect(screen.getByText(administrative.address_name)).toBeInTheDocument()
+    const card = screen.getByRole('region', { name: '행정구역 조회' })
+    expect(
+      within(card).getByText(administrative.address_name).closest('.lookup-heading'),
+    ).not.toBeNull()
+    expect(within(card).queryByText(/행정동 코드|위도|경도/)).not.toBeInTheDocument()
     expect(props.onRegionSelect).not.toHaveBeenCalled()
     expect(screen.getByLabelText('분석할 업종')).toHaveValue('coffee')
     await user.selectOptions(screen.getByLabelText('분석할 업종'), 'beauty')

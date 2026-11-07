@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { ChevronDown, Coffee, LoaderCircle, MapPin, Search, SlidersHorizontal } from 'lucide-react'
 import type { AdministrativeDong, BusinessType, District } from '../lib/backendReference'
 import type { MapRegion } from '../types/map'
+import type { ReferenceProvince } from '../lib/referenceAreas'
 import { Button } from './ui'
 
 export type ReferenceState<T> =
@@ -25,9 +26,11 @@ type SearchMatch =
   | { type: 'dong'; district: District; dong: AdministrativeDong }
 
 type Props = {
+  provinces: ReferenceProvince[]
   districts: ReferenceState<District>
   dongs: ReferenceState<AdministrativeDong>
   businessTypes: ReferenceState<BusinessType>
+  provinceCode: string
   districtCode: string
   dongCode: string
   businessTypeCode: string
@@ -40,6 +43,7 @@ type Props = {
   searchFailedCount?: number
   onSearchActiveChange?: (active: boolean) => void
   onRetrySearch?: () => void
+  onProvinceChange: (code: string) => void
   onDistrictChange: (code: string) => void
   onDongChange: (code: string) => void
   onBusinessTypeChange: (code: string) => void
@@ -81,9 +85,11 @@ function Feedback<T>({
 }
 
 export function ReferenceSearch({
+  provinces,
   districts,
   dongs,
   businessTypes,
+  provinceCode,
   districtCode,
   dongCode,
   businessTypeCode,
@@ -96,6 +102,7 @@ export function ReferenceSearch({
   searchFailedCount = 0,
   onSearchActiveChange,
   onRetrySearch,
+  onProvinceChange,
   onDistrictChange,
   onDongChange,
   onBusinessTypeChange,
@@ -418,17 +425,44 @@ export function ReferenceSearch({
               )}
               <div className="filter-selects">
                 <label className="select-wrap">
-                  <span className="sr-only">자치구</span>
+                  <span className="sr-only">시·도</span>
                   <select
-                    aria-label="자치구"
+                    aria-label="시·도"
+                    value={provinceCode}
+                    onChange={(event) => {
+                      setError('')
+                      onProvinceChange(event.target.value)
+                    }}
+                  >
+                    <option value="">시·도 선택</option>
+                    {provinces.map((province) => (
+                      <option
+                        key={province.code}
+                        value={province.code}
+                      >
+                        {province.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={15}
+                    aria-hidden="true"
+                  />
+                </label>
+                <label className="select-wrap">
+                  <span className="sr-only">시·군·구</span>
+                  <select
+                    aria-label="시·군·구"
                     value={districtCode}
                     onChange={(event) => {
                       setError('')
                       onDistrictChange(event.target.value)
                     }}
-                    disabled={districts.status !== 'success' || districtItems.length === 0}
+                    disabled={
+                      !provinceCode || districts.status !== 'success' || districtItems.length === 0
+                    }
                   >
-                    <option value="">자치구 선택</option>
+                    <option value="">시·군·구 선택</option>
                     {districtItems.map((item) => (
                       <option
                         key={item.districtCode}
