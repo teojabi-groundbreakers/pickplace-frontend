@@ -86,8 +86,7 @@ async function requestValidatedJson<T>(
 
     signal.throwIfAborted()
 
-    const requestId =
-      format === 'envelope' || !response.ok ? readRequestId(body, response) : undefined
+    const requestId = readRequestId(body, response)
 
     if (!response.ok) {
       const code = readErrorCode(body, format)
@@ -135,6 +134,18 @@ export function requestJson<T>(
   options: RequestInit = {},
 ): Promise<T> {
   return requestValidatedJson(path, validate, options, 'raw')
+}
+
+/** Reads a validated common envelope while preserving all typed metadata. */
+export function requestFullEnvelopeJson<T extends ApiEnvelope<unknown>>(
+  path: string,
+  validate: (value: unknown) => value is T,
+  options: RequestInit = {},
+): Promise<T> {
+  const isEnvelope = (value: unknown): value is T =>
+    isRecord(value) && hasRequestId(value.meta) && validate(value)
+
+  return requestValidatedJson(path, isEnvelope, options, 'envelope')
 }
 
 export async function requestEnvelopeJson<T>(

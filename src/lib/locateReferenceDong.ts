@@ -1,6 +1,7 @@
 import { loadKakaoMaps } from './kakaoMaps'
 import type { KakaoRegionResult } from './kakaoMaps'
 import { lookupAdministrativeRegion } from './regionLookup'
+import { isAdministrativeRegionCode } from './regionCode'
 
 export type ReferenceLocationErrorCode = 'NOT_FOUND' | 'MISMATCH' | 'SERVICE_ERROR' | 'TIMEOUT'
 
@@ -181,7 +182,7 @@ async function findVerifiedPlace(
         }
         if (
           region?.region_type === 'H' &&
-          /^\d{10}$/.test(region.code) &&
+          isAdministrativeRegionCode(region.code) &&
           region.region_1depth_name === '서울특별시' &&
           region.region_2depth_name === district &&
           typeof region.region_3depth_name === 'string' &&
@@ -225,7 +226,7 @@ export function locateReferenceDong(
 ): Promise<LocatedReferenceDong> {
   const district = districtName.trim()
   const dong = dongName.trim()
-  if (!district || !dong || !/^\d{10}$/.test(expectedH10)) {
+  if (!district || !dong || !isAdministrativeRegionCode(expectedH10)) {
     return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
   }
   const names = [...new Set([dong, officialName.trim()].filter(Boolean))]
