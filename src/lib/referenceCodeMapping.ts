@@ -1,4 +1,5 @@
 import referenceSnapshot from '../data/seoulReferenceCodes.json'
+import { isAdministrativeRegionCode } from './regionCode'
 
 type District = { districtCode: string; districtName: string }
 type AdministrativeDong = {
@@ -92,8 +93,7 @@ export function isReferenceSnapshot(value: unknown): value is ReferenceSnapshot 
       !isText(dong.name) ||
       typeof dong.districtCode !== 'string' ||
       !districtCodes.has(dong.districtCode) ||
-      typeof dong.officialCode !== 'string' ||
-      !/^\d{10}$/.test(dong.officialCode) ||
+      !isAdministrativeRegionCode(dong.officialCode) ||
       !isText(dong.officialName) ||
       (dong.status !== 'CURRENT' && dong.status !== 'LEGACY') ||
       dongCodes.has(dong.code) ||

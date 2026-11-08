@@ -152,6 +152,13 @@ describe('자치구의 실제 위치 조회', () => {
     ).rejects.toMatchObject({ code: 'MISMATCH' })
   })
 
+  it('역조회가 숫자형 코드를 반환하면 일치하는 구여도 결과를 거부한다', async () => {
+    mocks.lookup.mockResolvedValue({ ...region, code: 1156070000 })
+    await expect(
+      locateReferenceDistrict('영등포구', 'test-key', new AbortController().signal),
+    ).rejects.toMatchObject({ code: 'MISMATCH' })
+  })
+
   it('자치구 변경으로 취소하면 늦은 검색 응답을 사용하지 않는다', async () => {
     let callback: ((items: (typeof center)[], status: string) => void) | undefined
     mocks.keywordSearch.mockImplementation((_query, next) => {
