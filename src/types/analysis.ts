@@ -41,6 +41,23 @@ export interface AiMetricDecision {
   reasonCode: string | null
 }
 
+export interface RegionalSummaryMetric extends AiMetricDecision {
+  unit: 'PERSON' | 'STORE'
+  source: { datasetCode: string; referenceOn: string }
+}
+
+export interface RegionalSummary {
+  data: {
+    region: { regionCode: string }
+    businessType: { businessTypeCode: string }
+    metrics: {
+      registeredPopulation: RegionalSummaryMetric
+      listedStoreCount: RegionalSummaryMetric
+    }
+  }
+  meta: { requestId: string; referenceMonth: string }
+}
+
 export interface AiIndicator {
   status: 'available' | 'unavailable'
   reason: string | null
@@ -191,6 +208,7 @@ export interface Analysis {
   map: { center: [number, number]; boundary: [number, number][]; places: MapPlace[] }
   summary: string
   recommendations: string[]
+  regionalSummary?: RegionalSummary
   researchForecast?: ResearchForecast | null
   ai?: AiAnalysisDisplay | null
 }

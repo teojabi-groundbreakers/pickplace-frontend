@@ -3,11 +3,13 @@ import { analyze, ApiError, getCatalog, requestJson } from '../lib/api'
 import { config } from '../lib/config'
 import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
 import { isAnalysis, isCatalog, validateSelection } from '../lib/validation'
+import { buildReportText } from '../lib/reports'
 import { aiPeriodTestEnvelope, aiTestContext, aiTestEnvelope, aiTestRequest } from './aiFixtures'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
   config.demoMode = false
+  fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
 })
 afterEach(() => {
@@ -29,10 +31,63 @@ describe('API 계약 및 오류 처리', () => {
     expect(result.ai?.ai).toMatchObject({
       result: { growth: { status: 'unavailable', reason: 'model_not_found' } },
     })
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       '/api/ai/analyses',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(aiTestRequest) }),
     )
+  })
+
+  it('각 지표의 별도 기준월을 AI 상태·추이와 구분해 저장하고 보고서에 표시한다', async () => {
+    const envelope = {
+      data: {
+        region: { regionCode: aiTestRequest.regionCode },
+        businessType: { businessTypeCode: aiTestRequest.industryCode },
+        metrics: {
+          registeredPopulation: {
+            value: 10501,
+            unit: 'PERSON',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { datasetCode: 'POPULATION_MONTH', referenceOn: '2026-10-31' },
+          },
+          listedStoreCount: {
+            value: 0,
+            unit: 'STORE',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { datasetCode: 'STORE_SNAPSHOT', referenceOn: '2026-09-30' },
+          },
+        },
+      },
+      meta: { requestId: 'regional-summary', referenceMonth: '202609' },
+    }
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(aiTestRequest, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(envelope)))
+
+    const result = await analyze(aiTestRequest, undefined, 'success', aiTestContext)
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/regions/1111051500/summary?businessTypeCode=I21201',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(result.regionalSummary).toEqual(envelope)
+    expect(result.ai?.ai.state).toBe('SKIPPED')
+    expect(result.trends).toEqual([])
+    expect(isAnalysis(JSON.parse(JSON.stringify(result)))).toBe(true)
+    const report = buildReportText(result)
+    expect(report).toContain('등록인구: 10,501명 (2026년 10월 기준 · 자료 기준일 2026-10-31)')
+    expect(report).toContain(
+      '선택 업종 수록 업소 수: 0개 (2026년 9월 기준 · 자료 기준일 2026-09-30)',
+    )
+
+    envelope.data.region.regionCode = '1111053000'
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(aiTestRequest, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(envelope)))
+    const mismatched = await analyze(aiTestRequest, undefined, 'success', aiTestContext)
+    expect(mismatched.regionalSummary).toBeUndefined()
+    expect(mismatched.ai?.ai.state).toBe('SKIPPED')
   })
 
   it('보류 상태의 null 결과와 사유를 화면 결과에 보존한다', async () => {

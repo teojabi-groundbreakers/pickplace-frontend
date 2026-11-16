@@ -4,10 +4,11 @@ import type {
   AnalysisRequest,
   Catalog,
   DemoScenario,
+  RegionalSummary,
 } from '../types/analysis'
 import { createDemoAnalysis, demoCatalog } from '../data/demo'
 import { config } from './config'
-import { isAnalysis, isCatalog } from './validation'
+import { isAnalysis, isCatalog, isRegionalSummary } from './validation'
 import { catalogRegions } from './catalogRegions'
 import { findSupportedRegion } from './regionLookup'
 import { isAiAnalysisResponse, isAnalysisDisplayContext, toAnalysis } from './aiAnalysis'
@@ -238,5 +239,17 @@ export async function analyze(
     throw new ApiError('분석 결과를 표시할 수 없습니다.', 200, 'INVALID_RESPONSE', result.requestId)
   }
 
-  return display
+  if (!/^[A-Z][0-9]{5}$/.test(request.industryCode)) return display
+
+  const query = new URLSearchParams({ businessTypeCode: request.industryCode })
+  const regionalSummary = await requestJson(
+    `/regions/${encodeURIComponent(request.regionCode)}/summary?${query}`,
+    (value): value is RegionalSummary => isRegionalSummary(value, request),
+    { signal },
+  ).catch((error: unknown) => {
+    if (signal?.aborted || !(error instanceof ApiError)) throw error
+    return undefined
+  })
+
+  return regionalSummary ? { ...display, regionalSummary } : display
 }

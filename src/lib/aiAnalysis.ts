@@ -30,7 +30,7 @@ const calendarDate = (value: unknown): value is string => {
 
 const nullableText = (value: unknown): value is string | null => value === null || text(value)
 
-function isMetric(value: unknown): boolean {
+export function isMetricDecision(value: unknown): boolean {
   if (!object(value)) return false
   if (value.status === 'AVAILABLE') {
     return (
@@ -182,7 +182,7 @@ export function isAiAnalysisResponse(value: unknown): value is AiAnalysisRespons
     !object(value.statistics) ||
     !text(value.statistics.version) ||
     !object(value.statistics.metrics) ||
-    !Object.values(value.statistics.metrics).every(isMetric) ||
+    !Object.values(value.statistics.metrics).every(isMetricDecision) ||
     !object(value.ai) ||
     (value.ai.state !== 'SKIPPED' &&
       value.ai.state !== 'FAILED' &&

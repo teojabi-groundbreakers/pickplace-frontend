@@ -1,8 +1,13 @@
 import { BarChart3, ShieldCheck, Target } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { AiAnalysisDisplay, AiPeriodMetric } from '../types/analysis'
+import type { AiAnalysisDisplay, AiPeriodMetric, RegionalSummary } from '../types/analysis'
 import { aiDisplayMetrics, aiReasonText, aiWarningText } from '../lib/aiAnalysis'
-import { aiBasePeriodText, aiGrowthPeriodsText, aiStatisticsRows } from '../lib/aiPresentation'
+import {
+  aiBasePeriodText,
+  aiGrowthPeriodsText,
+  aiStatisticsRows,
+  regionalSummaryRows,
+} from '../lib/aiPresentation'
 import { Badge } from './ui'
 import './ai-diagnosis.css'
 
@@ -43,7 +48,41 @@ function DraftIndicator({
   )
 }
 
-export function AiDiagnosis({ data }: { data: AiAnalysisDisplay }) {
+export function RegionalSummaryCard({ summary }: { summary: RegionalSummary }) {
+  return (
+    <section
+      className="panel ai-diagnosis"
+      aria-label="지역·업종 현황"
+    >
+      <div className="panel-header">
+        <h2>지역·업종 현황</h2>
+      </div>
+      <div className="ai-diagnosis-body">
+        <dl className="regional-summary-metrics">
+          {regionalSummaryRows(summary).map(
+            ({ name, display, available, referenceOn, monthLabel }) => (
+              <div key={name}>
+                <dt>{name}</dt>
+                <dd className={available ? 'regional-summary-value' : undefined}>{display}</dd>
+                <dd>
+                  <time dateTime={referenceOn}>{monthLabel}</time>
+                </dd>
+              </div>
+            ),
+          )}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
+export function AiDiagnosis({
+  data,
+  hasRegionalSummary = false,
+}: {
+  data: AiAnalysisDisplay
+  hasRegionalSummary?: boolean
+}) {
   const { ai, statistics } = data
   const result = aiDisplayMetrics(data)
   const growthPeriods = result ? aiGrowthPeriodsText(result.growth) : ''
@@ -66,9 +105,10 @@ export function AiDiagnosis({ data }: { data: AiAnalysisDisplay }) {
       </div>
       <div className="ai-diagnosis-body">
         <p className="ai-as-of">정보 기준일 {data.asOf}</p>
-        {statisticRows.length === 0 ? (
+        {statisticRows.length === 0 && !hasRegionalSummary && (
           <p className="ai-data-notice">제공 가능한 통계 값이 아직 없습니다.</p>
-        ) : (
+        )}
+        {statisticRows.length > 0 && (
           <div className="ai-statistics">
             <h3>기본 통계</h3>
             <dl>

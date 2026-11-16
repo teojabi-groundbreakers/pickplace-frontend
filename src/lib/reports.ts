@@ -1,7 +1,12 @@
 import type { AiAnalysisDisplay, AiPeriodMetric, Analysis } from '../types/analysis'
 import { isAnalysis } from './validation'
 import { aiDisplayMetrics, aiReasonText, aiWarningText } from './aiAnalysis'
-import { aiBasePeriodText, aiGrowthPeriodsText, aiStatisticsRows } from './aiPresentation'
+import {
+  aiBasePeriodText,
+  aiGrowthPeriodsText,
+  aiStatisticsRows,
+  regionalSummaryRows,
+} from './aiPresentation'
 
 const storageKey = 'pickplace.reports.v1'
 
@@ -70,6 +75,16 @@ export function buildReportText(result: Analysis): string {
       ([key, score]) =>
         `${{ overall: '종합점수', growth: '성장 가능성', risk: '위험도 (높을수록 위험)', fit: '업종 적합도' }[key]}: ${score ? `${score.value}점 · ${score.grade}` : '제공되지 않음'}`,
     ),
+    ...(result.regionalSummary
+      ? [
+          '',
+          '지역·업종 현황',
+          ...regionalSummaryRows(result.regionalSummary).map(
+            ({ name, display, referenceOn, monthLabel }) =>
+              `${name}: ${display} (${monthLabel} · 자료 기준일 ${referenceOn})`,
+          ),
+        ]
+      : []),
     ...(result.researchForecast
       ? [
           '',

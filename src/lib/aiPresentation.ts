@@ -1,4 +1,9 @@
-import type { AiAnalysisDisplay, AiPeriodGrowth } from '../types/analysis'
+import type {
+  AiAnalysisDisplay,
+  AiMetricDecision,
+  AiPeriodGrowth,
+  RegionalSummary,
+} from '../types/analysis'
 import { aiReasonText } from './aiAnalysis'
 
 export function aiBasePeriodText(period: string | null): string {
@@ -35,16 +40,49 @@ const statReasons: Record<string, string> = {
 export function aiStatisticsRows(statistics: AiAnalysisDisplay['statistics']) {
   return Object.entries(statistics.metrics).map(([key, metric]) => {
     const label = Object.hasOwn(statLabels, key) ? statLabels[key] : undefined
-    const reason = metric.reasonCode
-    const status = metric.status === 'NO_DATA' ? '자료 없음' : '제공 불가'
 
     return {
       key,
       name: label?.name ?? key,
-      display:
-        metric.status === 'AVAILABLE' && metric.value !== null
-          ? `${metric.value.toLocaleString('ko-KR')}${label?.unit ?? ''}`
-          : `${status} · ${reason && Object.hasOwn(statReasons, reason) ? statReasons[reason] : aiReasonText(reason)}`,
+      display: statisticText(metric, label?.unit ?? ''),
+    }
+  })
+}
+
+function statisticText(metric: AiMetricDecision, unit: string) {
+  if (metric.status === 'AVAILABLE' && metric.value !== null) {
+    return `${metric.value.toLocaleString('ko-KR')}${unit}`
+  }
+
+  const reason = metric.reasonCode
+  const status = metric.status === 'NO_DATA' ? '자료 없음' : '제공 불가'
+  return `${status} · ${reason && Object.hasOwn(statReasons, reason) ? statReasons[reason] : aiReasonText(reason)}`
+}
+
+export function regionalSummaryRows(summary: RegionalSummary) {
+  const { registeredPopulation, listedStoreCount } = summary.data.metrics
+
+  return [
+    {
+      name: '등록인구',
+      metric: registeredPopulation,
+      unit: '명',
+    },
+    {
+      name: '선택 업종 수록 업소 수',
+      metric: listedStoreCount,
+      unit: '개',
+    },
+  ].map(({ name, metric, unit }) => {
+    const { referenceOn } = metric.source
+    const [year, month] = referenceOn.split('-')
+
+    return {
+      name,
+      display: statisticText(metric, unit),
+      available: metric.status === 'AVAILABLE',
+      referenceOn,
+      monthLabel: `${year}년 ${Number(month)}월 기준`,
     }
   })
 }

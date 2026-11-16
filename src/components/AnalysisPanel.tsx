@@ -11,7 +11,7 @@ import { downloadReport } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
 import { EmptyTrendPanel, TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
-import { AiDiagnosis } from './AiDiagnosis'
+import { AiDiagnosis, RegionalSummaryCard } from './AiDiagnosis'
 import { Factors, Summary, Competition } from './Insights'
 import { Badge, Button, EmptyState } from './ui'
 
@@ -189,7 +189,13 @@ export function AnalysisPanel({
               </div>
             )}
             <ScoreCards analysis={result} />
-            {result.ai && <AiDiagnosis data={result.ai} />}
+            {result.regionalSummary && <RegionalSummaryCard summary={result.regionalSummary} />}
+            {result.ai && (
+              <AiDiagnosis
+                data={result.ai}
+                hasRegionalSummary={Boolean(result.regionalSummary)}
+              />
+            )}
             {result.researchForecast && <ResearchForecast data={result.researchForecast} />}
             <div className="primary-grid">
               {result.trends.length > 0 ? (

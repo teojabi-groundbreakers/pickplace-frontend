@@ -126,6 +126,12 @@ Content-Type: application/json
 
 출처·사용 조건·H 코드 매핑·경계 기준일·원본 CRS·갱신/캐시 정책은 BE가 관리합니다. 서비스 Secret을 FE에 전달하지 않습니다. 구현은 [경계 클라이언트와 검증](../src/lib/regionBoundary.ts), [요청 상태](../src/lib/useRegionBoundary.ts), [지도 흐름](MAPS.md)을 참조합니다. SGIS 연계는 사용자 최신 요청에 따라 [후순위 검토사항](SGIS.md)으로 보류했으며 현재 필수 구현/배포 조건이 아닙니다. 이 계약은 기존 FE 연계 준비를 설명하는 초안으로 유지하며 SGIS 도입이나 실연결 완료를 뜻하지 않습니다.
 
+## GET /regions/{H10}/summary (게시 현황)
+
+실제 모드의 분석 결과와 같은 H10 및 소진공 소분류 코드로 `GET /regions/{H10}/summary?businessTypeCode=…`를 호출한다. FE는 응답의 지역·업종을 요청과 대조한다. 현재 API는 서버가 게시한 동일 월의 인구·업소 묶음을 내려준다. 월·분기는 요청에 포함하지 않는다.
+
+등록인구와 선택 업종 수록 업소 수는 각각의 `source.referenceOn`에서 읽은 기준월과 함께 표시한다. 저장본은 원래 응답을 보관하고 보고서는 각 기준일까지 적는다. `AVAILABLE`의 실제 0과 `NO_DATA`·`UNAVAILABLE`의 null 및 사유를 구분한다. 현황 조회에 실패해도 AI 분석 결과를 표시한다. 단월 현황은 월별 추이에 추가하지 않는다.
+
 ## POST /ai/analyses (현재 실제 모드)
 
 `VITE_API_BASE_URL=/api`일 때 실제 요청 경로는 `/api/ai/analyses`입니다. 카카오 지도에서 확인한 H10과 `GET /business-types`가 반환한 지원 업종 코드를 원본 그대로 보냅니다. 서버에서 제공되는 업종은 현재 `I21201`과 같은 소진공 소분류 코드이며 FE는 임의 변환하지 않습니다. 지역명·업종 표시명·카카오에서 선택한 좌표는 **화면 표시용**으로만 사용하고 요청 본문에는 넣지 않습니다.
