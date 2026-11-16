@@ -1,4 +1,5 @@
 import type { Analysis, AnalysisRequest, Catalog } from '../types/analysis'
+import { isAiAnalysisDisplay } from './aiAnalysis'
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -130,10 +131,17 @@ export function isAnalysis(value: unknown): value is Analysis {
     return false
   }
 
+  const ai = value.ai
+  if (ai != null && !isAiAnalysisDisplay(ai)) return false
+  const periodMatches =
+    ai?.schemaVersion === '2.0'
+      ? value.period === null
+      : /^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)
+
   return (
     str(value.regionName) &&
     str(value.industryName) &&
-    (/^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)) &&
+    periodMatches &&
     str(value.analyzedAt) &&
     /(?:Z|[+-]\d{2}:\d{2})$/.test(value.analyzedAt) &&
     Number.isFinite(Date.parse(value.analyzedAt)) &&

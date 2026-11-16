@@ -6,6 +6,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferenceDashboard } from '../pages/ReferenceDashboard'
+import { aiTestEnvelope } from './aiFixtures'
 
 const api = vi.hoisted(() => ({
   getDistricts: vi.fn(),
@@ -125,6 +126,101 @@ afterEach(() => {
 })
 
 describe('실제 백엔드 기준정보 화면', () => {
+  it('서버가 제공한 I 업종 코드로 AI 부분 결과를 표시하고 기존 점수는 만들지 않는다', async () => {
+    const request = { regionCode: '1111051500', industryCode: 'I21201' }
+    api.getBusinessTypes.mockResolvedValue(
+      payload([
+        { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
+      ]),
+    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(aiTestEnvelope(request))))
+    vi.stubGlobal('fetch', fetchMock)
+    const originalMode = config.demoMode
+    config.demoMode = false
+    try {
+      render(<DashboardUnderTest />)
+      await screen.findByRole('button', { name: '지도 위치 분석' })
+      await waitFor(() => expect(api.getBusinessTypes).toHaveBeenCalled())
+      const analysis = map.latest?.analysis as {
+        onAnalyze: (
+          region: { code: string; name: string; fullName: string; center: [number, number] },
+          industryCode: string,
+        ) => void
+      }
+      await act(async () => {
+        analysis.onAnalyze(
+          {
+            code: request.regionCode,
+            name: '청운효자동',
+            fullName: '서울특별시 종로구 청운효자동',
+            center: [37.58, 126.97],
+          },
+          request.industryCode,
+        )
+      })
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${config.apiBaseUrl}/ai/analyses`,
+        expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
+      )
+      expect(await screen.findByRole('heading', { name: 'AI 분석 상태' })).toBeInTheDocument()
+      expect(screen.getByText('AI 응답 확인')).toBeInTheDocument()
+      expect(
+        screen.getByText('제공 불가: 사용 가능한 예측 모델 파일이 없습니다.'),
+      ).toBeInTheDocument()
+      expect(screen.getByText('42.0 / 100')).toBeInTheDocument()
+      expect(screen.getByText('종합점수는 아직 제공되지 않습니다.')).toBeInTheDocument()
+      expect(screen.getByText(/정보 기준일 2026-11-13/)).toBeInTheDocument()
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
+  it('AI 요청 보류 사유를 표시하고 빈 결과에 점수와 추이를 생성하지 않는다', async () => {
+    const request = { regionCode: '1111051500', industryCode: 'I21201' }
+    api.getBusinessTypes.mockResolvedValue(
+      payload([
+        { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
+      ]),
+    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+    vi.stubGlobal('fetch', fetchMock)
+    const originalMode = config.demoMode
+    config.demoMode = false
+    try {
+      render(<DashboardUnderTest />)
+      await screen.findByRole('button', { name: '지도 위치 분석' })
+      const analysis = map.latest?.analysis as {
+        onAnalyze: (
+          region: { code: string; name: string; fullName: string; center: [number, number] },
+          industryCode: string,
+        ) => void
+      }
+      await act(async () => {
+        analysis.onAnalyze(
+          {
+            code: request.regionCode,
+            name: '청운효자동',
+            fullName: '서울특별시 종로구 청운효자동',
+            center: [37.58, 126.97],
+          },
+          request.industryCode,
+        )
+      })
+      expect(await screen.findByText('AI 요청 보류')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(
+        '지역·업종 코드의 공식 대응을 확인하지 못했습니다.',
+      )
+      expect(screen.queryByText('42.0 / 100')).not.toBeInTheDocument()
+      expect(screen.getByText('제공된 추이 데이터가 없습니다.')).toBeInTheDocument()
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
   it('기존 검색창에서 서버가 제공한 행정동을 찾고 선택하되 좌표나 분석을 추정하지 않는다', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn()
@@ -233,7 +329,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '지도 위치 분석' }))
       await screen.findByText('분석을 완료하지 못했어요')
       expect(fetchMock).toHaveBeenCalledWith(
-        `${config.apiBaseUrl}/analyses`,
+        `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ regionCode: '1111051500', industryCode: 'CS100010' }),
@@ -251,7 +347,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
+    const result = aiTestEnvelope(request)
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
     try {
@@ -262,7 +358,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
       expect(fetchMock).toHaveBeenLastCalledWith(
-        `${config.apiBaseUrl}/analyses`,
+        `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
     } finally {
@@ -275,7 +371,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
+    const result = aiTestEnvelope(request)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(result))))
     try {
       render(<DashboardUnderTest />)
@@ -367,7 +463,15 @@ describe('실제 백엔드 기준정보 화면', () => {
     )
     await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
-    expect(run).toHaveBeenCalledWith({ regionCode: officialCode, industryCode: 'CS100010' })
+    expect(run).toHaveBeenCalledWith(
+      { regionCode: officialCode, industryCode: 'CS100010' },
+      undefined,
+      {
+        regionName: '서울특별시 종로구 청운효자동 · 청운효자동 주민센터 주변',
+        industryName: '커피·음료',
+        center: verified.center,
+      },
+    )
   })
 
   it('이미 선택된 구를 다시 검색해 선택해도 위치와 동 목록을 유지한다', async () => {

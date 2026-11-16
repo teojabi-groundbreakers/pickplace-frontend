@@ -1,8 +1,40 @@
 import { ArrowRight, ArrowDownToLine, Bookmark, Trash2 } from 'lucide-react'
 import { Link } from 'react-router'
-import type { Analysis } from '../types/analysis'
+import type { AiAnalysisDisplay, Analysis } from '../types/analysis'
 import { Badge, Button } from '../components/ui'
+import { aiDisplayMetrics, aiReasonText } from '../lib/aiAnalysis'
+import { aiBasePeriodText } from '../lib/aiPresentation'
 import { downloadReport } from '../lib/reports'
+
+function SavedAiPeriods({ data }: { data: AiAnalysisDisplay }) {
+  const metrics = aiDisplayMetrics(data)
+  const entries = metrics
+    ? [
+        { name: '매출 성장률 추정', metric: metrics.growth },
+        { name: '위험 지수', metric: metrics.risk },
+        { name: '업종 적합도 지수', metric: metrics.fit },
+      ]
+    : []
+
+  return (
+    <div className="saved-ai-periods">
+      <p>정보 기준일 {data.asOf}</p>
+      {entries.length > 0 && (
+        <ul>
+          {entries.map(({ name, metric }) => (
+            <li key={name}>
+              <span>
+                {name} · {aiBasePeriodText(metric.basePeriod)}
+              </span>
+              {metric.status === 'unavailable' && <small>{aiReasonText(metric.reason)}</small>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {entries.length === 0 && data.ai.reason && <p>{aiReasonText(data.ai.reason)}</p>}
+    </div>
+  )
+}
 
 export function Saved({
   reports,
@@ -55,7 +87,9 @@ export function Saved({
                     ? '예시 분석'
                     : report.researchForecast
                       ? '연구용 추정'
-                      : '상권 분석'}
+                      : report.ai
+                        ? 'AI 부분 결과'
+                        : '상권 분석'}
                 </Badge>
                 <button
                   className="icon-button"
@@ -79,8 +113,9 @@ export function Saved({
                 ) : (
                   <span>종합점수 미제공</span>
                 )}
-                <span>{report.period} 기준</span>
+                {!report.ai && <span>{report.period} 기준</span>}
               </div>
+              {report.ai && <SavedAiPeriods data={report.ai} />}
               <div className="saved-card-bottom">
                 <Button
                   variant="ghost"

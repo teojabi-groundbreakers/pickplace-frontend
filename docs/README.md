@@ -23,6 +23,9 @@ PickPlace FE에서 진행한 작업, 결정 사항, 기술 사양과 검증 결�
 
 ## 현재 기준
 
+- 2026-11-16 AI 지표별 기준 분기를 결과 카드·저장 목록·보고서에 반영했다. FE는 기존 단일 분기 응답과 저장본도 읽는다. 새 응답 형식은 모의 검증용 초안이며 BE 계약 확정과 실서버 연동 확인이 남아 있다. [지표별 기준 분기 응답 초안](API.md#지표별-기준-분기-응답-초안)
+- 2026-11-13 실제 모드의 AI 분석은 `POST /api/ai/analyses` 봉투 응답을 사용하도록 FE에 구현했다. 보류·실패 사유, 성장률 제공 상태, 초안 지수와 경고를 표시하며 기존 점수·추이를 합성하지 않는다. [API 계약](API.md#post-aianalyses-현재-실제-모드)과 [FE 구현](FRONTEND.md#2026-11-13-실제-모드-ai-부분-결과)을 참조한다. 기존 시연 문서의 `/analyses` 설명은 과거 계약 초안이며 운영 연동 완료를 뜻하지 않는다.
+
 - 2026-11-06 기준 서비스 상태·자치구 [PR #13](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/13)은 `develop`에 병합됐다. 지도 [PR #3](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/3)은 Draft·리뷰와 병합 대기 중이다. 실제 공유 BE 연결과 운영 배포 확인은 별도다.
 - 모든 Git 작업은 [팀 개발 규칙](TEAM_RULES.md)의 Git Flow를 따른다. FE 적용 절차는 [개발 규칙](DEVELOPMENT.md#git-flow-적용)에 있다.
 - 2026-10-20 [브랜치 재점검](DEVELOPMENT.md#브랜치-점검-결과)에서 main/develop/feature 3개와 원격 동기화·조상 관계, worktree 1개가 정상임을 확인했다. `main`/`develop`의 원격 보호 규칙은 미설정으로 확인해 [이슈 #11](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/11)에 등록했다. 구조 점검 완료와 보호 설정 적용 대기·Draft PR #3 리뷰/병합 대기를 구분한다.

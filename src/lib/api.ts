@@ -1,9 +1,16 @@
-import type { Analysis, AnalysisRequest, Catalog, DemoScenario } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisDisplayContext,
+  AnalysisRequest,
+  Catalog,
+  DemoScenario,
+} from '../types/analysis'
 import { createDemoAnalysis, demoCatalog } from '../data/demo'
 import { config } from './config'
 import { isAnalysis, isCatalog } from './validation'
 import { catalogRegions } from './catalogRegions'
 import { findSupportedRegion } from './regionLookup'
+import { isAiAnalysisResponse, isAnalysisDisplayContext, toAnalysis } from './aiAnalysis'
 
 export class ApiError extends Error {
   status: number
@@ -92,7 +99,7 @@ async function requestValidatedJson<T>(
     if (!response.ok) {
       const code = readErrorCode(body, format)
       throw new ApiError(
-        format === 'raw' && code === 'INSUFFICIENT_DATA'
+        code === 'INSUFFICIENT_DATA'
           ? '분석할 데이터가 충분하지 않습니다.'
           : `서버가 요청을 처리하지 못했습니다. (${response.status})`,
         response.status,
@@ -158,6 +165,7 @@ export async function analyze(
   request: AnalysisRequest,
   signal?: AbortSignal,
   scenario: DemoScenario = 'success',
+  context?: AnalysisDisplayContext,
 ): Promise<Analysis> {
   if (config.demoMode) {
     await new Promise<void>((resolve, reject) => {
@@ -198,18 +206,37 @@ export async function analyze(
     return { ...result, request: { ...request } }
   }
 
-  const result = await requestJson('/analyses', isAnalysis, {
+  const result = await requestEnvelopeJson('/ai/analyses', isAiAnalysisResponse, {
     method: 'POST',
     body: JSON.stringify(request),
     signal,
   })
 
   if (
-    result.request.regionCode !== request.regionCode ||
-    result.request.industryCode !== request.industryCode
+    result.data.request.regionCode !== request.regionCode ||
+    result.data.request.industryCode !== request.industryCode
   ) {
-    throw new ApiError('요청 조건과 분석 결과가 일치하지 않습니다.', 200, 'INVALID_RESPONSE')
+    throw new ApiError(
+      '요청 조건과 분석 결과가 일치하지 않습니다.',
+      200,
+      'INVALID_RESPONSE',
+      result.requestId,
+    )
   }
 
-  return result
+  if (!isAnalysisDisplayContext(context)) {
+    throw new ApiError(
+      '분석 결과를 표시할 지역 위치와 업종 이름이 없습니다.',
+      200,
+      'MISSING_DISPLAY_CONTEXT',
+      result.requestId,
+    )
+  }
+
+  const display = toAnalysis(request, result.data, result.requestId, context)
+  if (!isAnalysis(display)) {
+    throw new ApiError('분석 결과를 표시할 수 없습니다.', 200, 'INVALID_RESPONSE', result.requestId)
+  }
+
+  return display
 }

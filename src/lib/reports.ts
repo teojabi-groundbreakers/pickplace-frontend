@@ -1,5 +1,7 @@
-import type { Analysis } from '../types/analysis'
+import type { AiAnalysisDisplay, AiPeriodMetric, Analysis } from '../types/analysis'
 import { isAnalysis } from './validation'
+import { aiDisplayMetrics, aiReasonText, aiWarningText } from './aiAnalysis'
+import { aiBasePeriodText, aiGrowthPeriodsText, aiStatisticsRows } from './aiPresentation'
 
 const storageKey = 'pickplace.reports.v1'
 
@@ -16,11 +18,53 @@ export function persistReports(reports: Analysis[]): void {
   localStorage.setItem(storageKey, JSON.stringify(reports.slice(0, 20)))
 }
 
-export function downloadReport(result: Analysis): void {
-  const text = [
+function aiReportLines(data: AiAnalysisDisplay): string[] {
+  const { ai, asOf, statistics } = data
+  const metrics = aiDisplayMetrics(data)
+  const lines = [
+    `AI 분석 상태: ${ai.state}`,
+    `정보 기준일: ${asOf} | 통계 판정 버전: ${statistics.version}`,
+  ]
+
+  if (ai.reason) lines.push(`사유: ${aiReasonText(ai.reason)}`)
+  const statisticsRows = aiStatisticsRows(statistics)
+  if (statisticsRows.length > 0) {
+    lines.push('기본 통계', ...statisticsRows.map(({ name, display }) => `${name}: ${display}`))
+  }
+  if (!metrics) return lines
+
+  const growthPeriods = [aiBasePeriodText(metrics.growth.basePeriod)]
+  const targetAndComparison = aiGrowthPeriodsText(metrics.growth)
+  if (targetAndComparison) growthPeriods.push(targetAndComparison)
+  const growth = metrics.growth
+  const growthValue =
+    growth.status === 'available'
+      ? `전년 동기 대비 ${(growth.value * 100).toFixed(1)}%`
+      : `제공 불가 (${aiReasonText(growth.reason)})`
+
+  function draftLine(label: string, metric: AiPeriodMetric) {
+    const value =
+      metric.status === 'available'
+        ? `${metric.value.toFixed(1)} / 100`
+        : `제공 불가 (${aiReasonText(metric.reason)})`
+    return `${label} (초안) (${aiBasePeriodText(metric.basePeriod)}): ${value}`
+  }
+
+  return [
+    ...lines,
+    `매출 성장률 추정 (${growthPeriods.join(' · ')}): ${growthValue}`,
+    draftLine('위험 지수', metrics.risk),
+    draftLine('업종 적합도 지수', metrics.fit),
+    '초안 지수는 성공률·폐업 확률이 아닙니다.',
+    ...metrics.warnings.map((warning) => `해석 시 주의: ${aiWarningText(warning)}`),
+  ]
+}
+
+export function buildReportText(result: Analysis): string {
+  return [
     'PickPlace 상권 분석 보고서',
     `${result.regionName} · ${result.industryName}`,
-    `기준: ${result.period} | ${result.source === 'demo' ? '예시 데이터 (실제 투자 판단에 사용하지 마세요)' : 'API 분석 데이터'}`,
+    `${result.ai ? '' : `기준: ${result.period} | `}${result.source === 'demo' ? '예시 데이터 (실제 투자 판단에 사용하지 마세요)' : 'API 분석 데이터'}`,
     '',
     ...Object.entries(result.scores).map(
       ([key, score]) =>
@@ -38,6 +82,7 @@ export function downloadReport(result: Analysis): void {
           ),
         ]
       : []),
+    ...(result.ai ? ['', ...aiReportLines(result.ai)] : []),
     '',
     '진단 요약',
     result.summary,
@@ -57,10 +102,14 @@ export function downloadReport(result: Analysis): void {
         `${point.month} | 매출 ${point.sales ?? '미제공'} | 유동인구 ${point.population ?? '미제공'} | 점포 ${point.stores ?? '미제공'} | 개업 ${point.openings ?? '미제공'} | 폐업 ${point.closures ?? '미제공'}`,
     ),
   ].join('\n')
+}
+
+export function downloadReport(result: Analysis): void {
+  const text = buildReportText(result)
   const url = URL.createObjectURL(new Blob(['\uFEFF', text], { type: 'text/plain;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `PickPlace_${result.regionName}_${result.period}.txt`
+  anchor.download = `PickPlace_${result.regionName}_${result.ai?.asOf ?? result.period}.txt`
   anchor.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
