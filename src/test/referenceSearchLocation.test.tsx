@@ -18,6 +18,7 @@ function renderSearch(locationState: LocationState, pointRegion: MapRegion | nul
 
   render(
     <ReferenceSearch
+      provinces={[{ code: '11', name: '서울특별시' }]}
       districts={{
         status: 'success',
         items: [{ districtCode: '11560', districtName: '영등포구' }],
@@ -28,9 +29,7 @@ function renderSearch(locationState: LocationState, pointRegion: MapRegion | nul
           {
             dongCode: '11560700',
             dongName: '대림1동',
-            districtCode: '11560',
             officialCodeStatus: 'CURRENT',
-            regionVersion: 'test-version',
           },
         ],
       }}
@@ -38,6 +37,7 @@ function renderSearch(locationState: LocationState, pointRegion: MapRegion | nul
         status: 'success',
         items: [{ businessTypeCode: 'CS100010', businessTypeName: '커피·음료', supported: true }],
       }}
+      provinceCode="11"
       districtCode="11560"
       dongCode="11560700"
       businessTypeCode="CS100010"
@@ -45,6 +45,7 @@ function renderSearch(locationState: LocationState, pointRegion: MapRegion | nul
       locationState={locationState}
       onRetryLocation={onRetryLocation}
       pending={false}
+      onProvinceChange={() => {}}
       onDistrictChange={() => {}}
       onDongChange={() => {}}
       onBusinessTypeChange={() => {}}

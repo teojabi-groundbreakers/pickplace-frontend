@@ -8,15 +8,15 @@ import type {
 } from '../types/boundary'
 import { ApiError, requestJson } from './api'
 import { config } from './config'
+import { isAdministrativeRegionCode } from './regionCode'
+
+export { isAdministrativeRegionCode }
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const string = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0
-
-export const isAdministrativeRegionCode = (value: unknown): value is string =>
-  typeof value === 'string' && /^\d{10}$/.test(value)
 
 function isPosition(value: unknown): value is BoundaryPosition {
   return (

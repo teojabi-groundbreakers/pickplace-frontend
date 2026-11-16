@@ -1,4 +1,5 @@
 import { loadKakaoMaps } from './kakaoMaps'
+import { isAdministrativeRegionCode } from './regionCode'
 import type { KakaoRegionResult } from './kakaoMaps'
 import type { MapRegion } from '../types/map'
 
@@ -65,7 +66,7 @@ export function lookupAdministrativeRegion(
             finish(null, new Error('행정구역을 조회하지 못했어요. 연결 상태를 확인해 주세요.'))
           } else {
             const region = results.find((item) => item.region_type === 'H')
-            if (region && (!/^\d{10}$/.test(region.code) || !region.address_name)) {
+            if (region && (!isAdministrativeRegionCode(region.code) || !region.address_name)) {
               finish(null, new Error('행정구역 조회 응답을 확인할 수 없어요. 다시 시도해 주세요.'))
             } else finish(region || null)
           }

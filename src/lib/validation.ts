@@ -1,5 +1,6 @@
 import type { Analysis, AnalysisRequest, Catalog, RegionalSummary } from '../types/analysis'
 import { isAiAnalysisDisplay, isMetricDecision } from './aiAnalysis'
+import { isAdministrativeRegionCode } from './regionCode'
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -238,7 +239,8 @@ export function validateSelection(
   catalog: Catalog,
   resolvedRegionCode?: string,
 ): string | null {
-  const resolved = resolvedRegionCode === request.regionCode && /^\d{10}$/.test(resolvedRegionCode)
+  const resolved =
+    resolvedRegionCode === request.regionCode && isAdministrativeRegionCode(resolvedRegionCode)
   if (
     !resolved &&
     !catalog.cities.some((city) =>

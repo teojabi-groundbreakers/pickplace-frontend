@@ -6,11 +6,13 @@ export function RegionLookupActions({
   analysis,
   disabled,
   onExplore,
+  analysisUnavailableMessage,
 }: {
   region: MapRegion
   analysis: RegionAnalysisOptions
   disabled?: boolean
   onExplore: (region: MapRegion) => void
+  analysisUnavailableMessage?: string
 }) {
   const [error, setError] = useState('')
   const available = analysis.categories.some((category) => category.industries.length > 0)
@@ -22,7 +24,7 @@ export function RegionLookupActions({
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
-        if (disabled || !available) return
+        if (disabled || !available || analysisUnavailableMessage) return
         const valid = analysis.categories.some((category) =>
           category.industries.some((industry) => industry.code === analysis.industryCode),
         )
@@ -66,12 +68,13 @@ export function RegionLookupActions({
       {!available && (
         <p>업종 목록을 불러온 뒤 분석할 수 있어요. 둘러보기는 계속 사용할 수 있어요.</p>
       )}
+      {analysisUnavailableMessage && <p role="status">{analysisUnavailableMessage}</p>}
       {error && <p role="alert">{error}</p>}
       <div className="lookup-actions">
         <button
           type="submit"
           className="button button-primary"
-          disabled={disabled || !available}
+          disabled={disabled || !available || Boolean(analysisUnavailableMessage)}
         >
           {disabled ? '분석 중' : '이 지역 분석'}
         </button>

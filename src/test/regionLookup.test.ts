@@ -57,6 +57,13 @@ describe('실제 좌표의 행정동 조회', () => {
     await expect(lookup()).rejects.toThrow('응답')
   })
 
+  it('SDK가 10자리 숫자를 반환해도 문자열 코드로 간주하지 않는다', async () => {
+    sdk.query.mockImplementation((_lng, _lat, callback) =>
+      callback([{ ...administrative, code: 1120069000 }], 'OK'),
+    )
+    await expect(lookup()).rejects.toThrow('응답')
+  })
+
   it('SDK 연결 실패나 services 누락을 조회 실패로 반환한다', async () => {
     sdk.load.mockRejectedValueOnce(new Error('SDK error'))
     await expect(lookup()).rejects.toThrow('연결에 실패')

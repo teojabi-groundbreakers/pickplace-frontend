@@ -1,8 +1,17 @@
 # PickPlace FE · API 연동 계약 초안
 
-> **작업 브랜치 기준:** 기준정보 검색 화면 연결은 PR #18의 검토 대상입니다. 선택 지역 지도 이동은 #16의 후속 작업이며 실제 서버·모바일 검증은 미완료입니다.
+## 전국 H10 목록 연계 준비
 
-현재 BE가 제공하는 기준정보 목록은 아래 별도 API에 맞춰 연결했습니다. 실제 모드의 AI 분석 호출은 아래 `POST /ai/analyses` 계약으로 연결했습니다. 기존 `POST /analyses` 전체 분석 응답은 별도 초안이며 현재 실제 모드에서 호출하지 않습니다. 독립 경계 응답은 아직 합의되지 않은 초안입니다. 모든 경로는 `VITE_API_BASE_URL` 뒤에 붙으며 요청 제한 시간은 30초입니다.
+2026-11-08 최신 BE 합의에 따라 시·도, 그룹, 읍·면·행정동 목록 클라이언트와 선택 상태는 H10을 사용한다. 공개 `regionVersion`·`selectionRegionVersion`과 버전 충돌에 따른 강제 재선택은 도입을 보류했다. 전국 모드에서는 기존 검색 조건의 3단계 선택 화면을 사용한다. 현황·분석 연동은 별도 계약으로 다룬다.
+
+- `GET /regions/provinces`에는 쿼리를 보내지 않는다. API 기본 URL의 `/api`는 별도로 붙는다.
+- `GET /regions/groups?provinceCode=...`과 `GET /regions/localities?groupCode=...`에는 각 부모의 10자리 H10 원본만 전달한다.
+- 세 목록은 `data.items`와 `meta.requestId`, `meta.codeSystem=MOIS_H10`, `meta.sourceReferenceOn`, `meta.sourceFileVersion`을 반환한다. 기준일은 날짜 문자열 또는 `null`이다. 출처 정보는 응답에서 보존한다. 항목의 H10·선택 단계·부모·중복을 검증하고 서버 순서를 유지한다.
+- `autoSelect=true`인 그룹만 자동 적용한다. 지역을 바꾸면 하위 선택을 초기화하고 진행 중인 하위 조회를 취소한다. 404 `REGION_NOT_FOUND`이면 유효하지 않은 선택을 해제하고 부모 목록을 다시 확인한다. 503의 준비 중·서비스 장애와 200 빈 목록을 구분한다.
+
+BE는 현재 게시 자료로 코드의 존재·역할·소속·상태를 검증한다. 보조 필드와 오류 문구의 세부 정책, 현황·분석과 과거 지역 API는 각각의 계약으로 관리한다.
+
+기존 서울 실제 API 모드의 기준정보 목록과 AI 분석 호출은 아래 개별 API와 `POST /ai/analyses` 계약을 사용합니다. 전국 모드(`VITE_NATIONWIDE_REGIONS_ENABLED=true`)는 전국 목록 조회와 지도 이동을 지원하며 새 분석은 준비 중으로 표시합니다. 기존 `POST /analyses`와 독립 경계 응답은 별도 초안입니다. 모든 경로는 `VITE_API_BASE_URL` 뒤에 붙으며 요청 제한 시간은 30초입니다.
 
 백엔드 개발의 우선순위·산출물·현재 FE 제약·인수 시나리오는 [백엔드 인계 문서](BACKEND_HANDOFF.md)에 있습니다. 이 문서는 요청·응답 상세 계약의 원본으로 유지합니다.
 
@@ -10,9 +19,9 @@
 
 ## 현재 BE 기준정보 API
 
-실제 API 모드의 FE는 `GET /districts`, `GET /districts/{districtCode}/administrative-dongs`, `GET /business-types`를 각각 호출합니다. 성공의 `data.items`와 `meta.requestId`, 오류의 `error.code`·`meta.requestId`를 검증합니다. 정상 빈 목록과 오류는 분리하고 목록마다 재시도합니다. 서버가 반환한 5자리 구 코드, 8자리 원천 행정동 코드, 공식 대응 상태·기준 버전 및 업종 원본 코드를 보존합니다. 현재 실제 업종 API는 `Ixxxxx` 형식의 소진공 소분류를 제공하며 예전 정적 `CS...` 참고 자료와 구분합니다. `LEGACY`는 과거 코드로 표시합니다.
+기존 서울 실제 API 모드의 FE는 `GET /districts`, `GET /districts/{districtCode}/administrative-dongs`, `GET /business-types`를 각각 호출합니다. 성공의 `data.items`와 `meta.requestId`, 오류의 `error.code`·`meta.requestId`를 검증합니다. 정상 빈 목록과 오류는 분리하고 목록마다 재시도합니다. 서버가 반환한 5자리 구 코드, 8자리 원천 행정동 코드, 공식 대응 상태·기준 버전 및 업종 원본 코드를 보존합니다. 실제 업종 API는 `I21201`과 같은 소진공 소분류를 제공하며 예전 정적 `CS...` 참고 자료와 구분합니다. `LEGACY`는 과거 코드로 표시합니다.
 
-기존 지도 상단 검색창·조건 선택 UI에 목록을 표시합니다. 이름 검색을 시작할 때 구별 동 목록을 최대 4건 병렬로 조회하고 구별 성공 결과를 캐시하며, 미완료·부분 실패와 재시도를 표시합니다. 이 목록에는 지도 좌표나 업종 대분류가 없으므로 기존 데모 `Catalog`로 합성하지 않습니다. 이 작업 브랜치에는 선택한 구·동의 지도 이동이 연결되지 않았습니다. 지역의 검증된 위치가 없을 때 분석을 차단하며, 지도에서 카카오 좌표 조회로 확인한 H10과 서버 업종을 분석 요청에 전달합니다. 선택 위치 이동은 #16의 후속 통합 범위입니다. BE의 분석 API는 현재 미구현이므로 오류가 반환되며 데모로 대체하지 않습니다. 8자리와 H10을 임의 절삭·접미사 또는 이름 추정으로 변환하지 않습니다.
+기존 지도 상단 검색창·조건 선택 UI에 목록을 표시합니다. 이름 검색을 시작할 때 구별 동 목록을 최대 4건 병렬로 조회하고 구별 성공 결과를 캐시하며, 미완료·부분 실패와 재시도를 표시합니다. 목록의 위치는 지도에서 확인하며 카카오 좌표 조회에서 검증된 H10과 서버 업종을 분석 요청에 전달합니다. 8자리 원천 코드와 H10의 대응은 검증된 자료를 사용합니다.
 
 ## GET /catalog (기존 계약 초안)
 
@@ -134,7 +143,7 @@ Content-Type: application/json
 
 ## POST /ai/analyses (현재 실제 모드)
 
-`VITE_API_BASE_URL=/api`일 때 실제 요청 경로는 `/api/ai/analyses`입니다. 카카오 지도에서 확인한 H10과 `GET /business-types`가 반환한 지원 업종 코드를 원본 그대로 보냅니다. 서버에서 제공되는 업종은 현재 `I21201`과 같은 소진공 소분류 코드이며 FE는 임의 변환하지 않습니다. 지역명·업종 표시명·카카오에서 선택한 좌표는 **화면 표시용**으로만 사용하고 요청 본문에는 넣지 않습니다.
+기존 서울 실제 API 모드에서 `VITE_API_BASE_URL=/api`일 때 요청 경로는 `/api/ai/analyses`입니다. 카카오 지도에서 확인한 H10과 `GET /business-types`가 반환한 지원 업종 코드를 원본 그대로 보냅니다. 서버에서 제공되는 업종은 현재 `I21201`과 같은 소진공 소분류 코드이며 FE는 임의 변환하지 않습니다. 지역명·업종 표시명·카카오에서 선택한 좌표는 **화면 표시용**으로만 사용하고 요청 본문에는 넣지 않습니다.
 
 ```json
 { "regionCode": "1111051500", "industryCode": "I21201" }
@@ -144,7 +153,7 @@ Content-Type: application/json
 
 `ai.state`가 `AVAILABLE`일 때만 `ai.result`를 받아 성장률의 `estimated_yoy_growth`와 `target_period`·`comparison_period`, 위험·적합도 초안 지수와 경고를 표시합니다. 성장률은 비율이고 위험·적합도는 규칙 기반 초안 지수이므로 기존 `Analysis.scores`로 옮기지 않습니다. 성장률 자체가 `unavailable`이면 `null`과 그 사유를 표시합니다. `SKIPPED` 또는 `FAILED`에서는 `result: null`과 한국어 사유를 표시하며 통계의 개별 상태는 유지합니다. `basePeriod`는 실제 관측 매출 분기나 모델 학습 최신 분기가 아닙니다.
 
-FE는 봉투·요청 코드 일치·날짜·분기·상태·수치 범위를 검증합니다. 이전 원본 `Analysis` JSON을 성공 응답으로 받지 않습니다. 오류 응답은 BE 공통 `error.code`·`meta.requestId`를 사용하고 요청 ID를 오류 안내에 보여줍니다. 실제 BE·FastAPI의 로컬 경계 테스트와 FE 모의 응답 테스트는 각각 수행했으며 실제 브라우저부터 BE까지의 연결 검증은 아직 별도입니다.
+FE는 봉투·요청 코드 일치·날짜·분기·상태·수치 범위를 검증합니다. 이전 원본 `Analysis` JSON을 성공 응답으로 받지 않습니다. 오류 응답은 BE 공통 `error.code`·`meta.requestId`를 사용하고 요청 ID를 오류 안내에 보여줍니다. 청운효자동·카페의 게시 현황과 일반 분석의 AI 보류 상태를 기존 로컬 BE 응답으로 확인했습니다. 승인 자료를 사용한 실제 FE → BE → FastAPI 통합 검증은 남아 있습니다.
 
 ### 지표별 기준 분기 응답 초안
 

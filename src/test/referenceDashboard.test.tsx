@@ -54,7 +54,7 @@ vi.mock('../components/AreaMap', () => ({
               {
                 code: '1111051500',
                 name: '청운효자동',
-                fullName: '서울 종로구 청운효자동',
+                fullName: '서울특별시 종로구 청운효자동',
                 center: [37.58, 126.97],
               },
               'CS100010',
@@ -254,6 +254,38 @@ describe('실제 백엔드 기준정보 화면', () => {
     }
   })
 
+  it('시도 선택을 초기화하면 하위 지역이 해제되고 검색으로 서울 지역을 다시 선택한다', async () => {
+    const user = userEvent.setup()
+    api.getAdministrativeDongs.mockImplementation((code: string) =>
+      Promise.resolve(payload(code === '11110' ? dongs : [])),
+    )
+    render(<DashboardUnderTest />)
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+
+    const city = screen.getByLabelText('시·도')
+    const district = await screen.findByLabelText('시·군·구')
+    const dong = screen.getByLabelText('행정동')
+    expect(city).toHaveValue('11')
+    expect(within(city).getByRole('option', { name: '서울특별시' })).toBeInTheDocument()
+    await screen.findByRole('option', { name: '종로구' })
+    await user.selectOptions(district, '11110')
+    await screen.findByRole('option', { name: '청운효자동' })
+    await user.selectOptions(dong, '11110515')
+    expect(dong).toHaveValue('11110515')
+
+    await user.selectOptions(city, '')
+    expect(district).toHaveValue('')
+    expect(dong).toHaveValue('')
+    expect(district).toBeDisabled()
+    expect(dong).toBeDisabled()
+
+    await user.type(screen.getByRole('combobox', { name: '지역 검색' }), '청운효자동')
+    await user.click(await screen.findByRole('button', { name: '종로구 청운효자동' }))
+    expect(city).toHaveValue('11')
+    expect(district).toHaveValue('11110')
+    await waitFor(() => expect(dong).toHaveValue('11110515'))
+  })
+
   it('기존 검색창에서 서버가 제공한 행정동을 찾고 선택하되 좌표나 분석을 추정하지 않는다', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn()
@@ -313,7 +345,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     vi.stubGlobal('fetch', fetchMock)
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    const district = await screen.findByLabelText('자치구')
+    const district = await screen.findByLabelText('시·군·구')
     const industry = await screen.findByLabelText('지원 업종')
     await screen.findByRole('option', { name: '종로구' })
     await screen.findByRole('option', { name: '커피·음료' })
@@ -381,7 +413,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
     const result = aiTestEnvelope(request)
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
     try {
       render(<DashboardUnderTest />)
@@ -394,6 +426,57 @@ describe('실제 백엔드 기준정보 화면', () => {
         `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
+  it('지도에서 서울 외 지역을 분석하면 시도를 잘못 표시하지 않고 같은 위치로 재분석한다', async () => {
+    const user = userEvent.setup()
+    const originalMode = config.demoMode
+    config.demoMode = false
+    const request = { regionCode: '9999999999', industryCode: 'CS100010' }
+    const result = aiTestEnvelope(request)
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      render(<DashboardUnderTest />)
+      await screen.findByRole('button', { name: '지도 위치 분석' })
+      const analysis = map.latest?.analysis as {
+        onAnalyze: (
+          region: { code: string; name: string; fullName: string; center: [number, number] },
+          industryCode: string,
+        ) => void
+      }
+      await act(async () => {
+        analysis.onAnalyze(
+          {
+            code: request.regionCode,
+            name: '가상동',
+            fullName: '경기도 수원시 장안구 가상동',
+            center: [37.29, 127.01],
+          },
+          request.industryCode,
+        )
+      })
+      await screen.findByRole('button', { name: '분석 저장' })
+      await user.click(screen.getByRole('button', { name: '업종·지역 조건' }))
+      expect(screen.getByLabelText('시·도')).toHaveValue('')
+      expect(screen.getByLabelText('시·군·구')).toBeDisabled()
+      expect(
+        within(screen.getByRole('region', { name: '지역과 업종 목록' })).getByText(
+          '경기도 수원시 장안구 가상동',
+        ),
+      ).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        `${config.apiBaseUrl}/ai/analyses`,
+        expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
+      )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
@@ -413,11 +496,50 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '지도 위치 분석' }))
       await screen.findByRole('button', { name: '분석 저장' })
       expect(map.latest?.selectedRegionCode).toBe(request.regionCode)
-      await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+      await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
       expect(screen.getByText(/검색 조건이 변경되었어요/)).toBeInTheDocument()
       expect(map.latest?.selectedRegionCode).toBe('')
       expect((map.latest?.data as { boundary: unknown[] } | undefined)?.boundary).toEqual([])
       expect((map.latest?.data as { places: unknown[] } | undefined)?.places).toEqual([])
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
+  it('시도 선택 해제 시 기존 분석을 이전 결과로 분리하고 새 분석은 다시 표시한다', async () => {
+    const user = userEvent.setup()
+    const originalMode = config.demoMode
+    config.demoMode = false
+    const request = { regionCode: '1111051500', industryCode: 'CS100010' }
+    const result = aiTestEnvelope(request)
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(result))))
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      render(<DashboardUnderTest />)
+      await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+      await user.click(screen.getByRole('button', { name: '지도 위치 분석' }))
+      await screen.findByRole('button', { name: '분석 저장' })
+      expect(map.latest?.selectedRegionCode).toBe(request.regionCode)
+
+      await user.selectOptions(screen.getByLabelText('시·도'), '')
+      expect(screen.getByText(/검색 조건이 변경되었어요/)).toBeInTheDocument()
+      expect(map.latest?.selectedRegionCode).toBe('')
+      expect((map.latest?.data as { boundary: unknown[] } | undefined)?.boundary).toEqual([])
+      expect((map.latest?.data as { places: unknown[] } | undefined)?.places).toEqual([])
+
+      await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
+      expect(screen.getByRole('alert')).toHaveTextContent('지역의 위치를 확인한 뒤 분석해 주세요.')
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      await user.click(screen.getByRole('button', { name: '지도 위치 분석' }))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+      await waitFor(() =>
+        expect(screen.queryByText(/검색 조건이 변경되었어요/)).not.toBeInTheDocument(),
+      )
+      expect(map.latest?.selectedRegionCode).toBe(request.regionCode)
     } finally {
       config.demoMode = originalMode
     }
@@ -444,6 +566,41 @@ describe('실제 백엔드 기준정보 화면', () => {
     expect(screen.getByText(/검색 조건이 변경되었어요/)).toBeInTheDocument()
     expect((map.latest?.data as { boundary: unknown[] } | undefined)?.boundary).toEqual([])
     expect((map.latest?.data as { places: unknown[] } | undefined)?.places).toEqual([])
+  })
+
+  it('시도 선택 해제 후 저장한 분석을 다시 열면 해당 결과를 표시한다', async () => {
+    const user = userEvent.setup()
+    const result = {
+      ...createDemoAnalysis(defaultRequest),
+      request: { regionCode: '1111051500', industryCode: 'CS100010' },
+      source: 'api' as const,
+    }
+    const savedState = { status: 'success' as const, result }
+    const view = render(
+      <ReferenceDashboard
+        state={savedState}
+        run={vi.fn()}
+        saved={[result]}
+        onSave={() => {}}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
+    await user.selectOptions(screen.getByLabelText('시·도'), '')
+    expect(screen.getByText(/검색 조건이 변경되었어요/)).toBeInTheDocument()
+    expect(map.latest?.selectedRegionCode).toBe('')
+
+    view.rerender(
+      <ReferenceDashboard
+        state={{ status: 'success', result }}
+        run={vi.fn()}
+        saved={[result]}
+        onSave={() => {}}
+      />,
+    )
+
+    expect(screen.queryByText(/검색 조건이 변경되었어요/)).not.toBeInTheDocument()
+    expect(map.latest?.selectedRegionCode).toBe(result.request.regionCode)
   })
 
   it('실제 역조회가 확인한 H 코드와 좌표로 이동하고 해당 H 코드를 분석에 사용한다', async () => {
@@ -477,7 +634,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       />,
     )
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     await waitFor(() =>
@@ -493,6 +650,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       '청운효자동',
       config.kakaoMapAppKey,
       expect.any(AbortSignal),
+      '서울특별시',
     )
     await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
@@ -527,7 +685,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     location.locateReferenceDistrict.mockResolvedValue(verified)
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await waitFor(() =>
       expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
@@ -543,7 +701,7 @@ describe('실제 백엔드 기준정보 화면', () => {
         name: '종로구',
       }),
     )
-    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByLabelText('시·군·구')).toHaveValue('11110')
     expect(screen.getByRole('option', { name: '청운효자동' })).toBeInTheDocument()
     expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center })
     expect(location.locateReferenceDistrict).toHaveBeenCalledTimes(1)
@@ -572,7 +730,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     location.locateReferenceDong.mockResolvedValue(verified)
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     await waitFor(() =>
@@ -581,7 +739,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     const input = screen.getByRole('combobox', { name: '지역 검색' })
     await user.type(input, '청운효자동')
     await user.click(await screen.findByRole('button', { name: '종로구 청운효자동' }))
-    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByLabelText('시·군·구')).toHaveValue('11110')
     expect(screen.getByLabelText('행정동')).toHaveValue('11110515')
     expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center })
     expect(location.locateReferenceDong).toHaveBeenCalledTimes(1)
@@ -613,7 +771,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     )
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     await waitFor(() =>
@@ -628,7 +786,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     await waitFor(() =>
       expect(map.latest?.exploreRegion).toMatchObject({ center: [37.572, 126.979] }),
     )
-    expect(screen.getByLabelText('자치구')).toHaveValue('11110')
+    expect(screen.getByLabelText('시·군·구')).toHaveValue('11110')
     expect(screen.getByLabelText('행정동')).toHaveValue('')
     expect(screen.getByRole('option', { name: '청운효자동' })).toBeInTheDocument()
     expect(screen.queryByText('행정동 목록을 불러오고 있어요.')).not.toBeInTheDocument()
@@ -660,7 +818,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       />,
     )
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await waitFor(() =>
       expect(map.latest?.exploreRegion).toMatchObject({ center: verified.center }),
     )
@@ -682,7 +840,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       />,
     )
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     await screen.findByRole('button', { name: '위치 다시 찾기' })
@@ -718,7 +876,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       />,
     )
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     await screen.findByRole('button', { name: '위치 다시 찾기' })
@@ -745,7 +903,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
     const previousCenter = (map.latest?.data as { center: number[] } | undefined)?.center
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByText('선택한 지역의 위치를 찾고 있어요.')
     expect(map.latest?.preserveViewport).toBe(true)
     const signal = location.locateReferenceDistrict.mock.calls[0][2] as AbortSignal
@@ -802,7 +960,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     })
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    await user.selectOptions(screen.getByLabelText('자치구'), '11110')
+    await user.selectOptions(screen.getByLabelText('시·군·구'), '11110')
     await screen.findByRole('option', { name: '청운효자동' })
     await user.selectOptions(screen.getByLabelText('행정동'), '11110515')
     const firstSignal = location.locateReferenceDong.mock.calls[0][5] as AbortSignal
@@ -856,7 +1014,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     )
     render(<DashboardUnderTest />)
     await user.click(await screen.findByRole('button', { name: '업종·지역 조건' }))
-    const district = await screen.findByLabelText('자치구')
+    const district = await screen.findByLabelText('시·군·구')
     await screen.findByRole('option', { name: '종로구' })
     await user.selectOptions(district, '11110')
     const firstSignal = api.getAdministrativeDongs.mock.calls[0][1] as AbortSignal
