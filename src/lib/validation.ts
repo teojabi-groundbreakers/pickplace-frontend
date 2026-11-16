@@ -1,4 +1,5 @@
-import type { Analysis, AnalysisRequest, Catalog } from '../types/analysis'
+import type { Analysis, AnalysisRequest, Catalog, RegionalSummary } from '../types/analysis'
+import { isAiAnalysisDisplay, isMetricDecision } from './aiAnalysis'
 import { isAdministrativeRegionCode } from './regionCode'
 
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -37,6 +38,39 @@ const calendarDate = (value: unknown) => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00Z`)
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+export function isRegionalSummary(
+  value: unknown,
+  request: AnalysisRequest,
+): value is RegionalSummary {
+  if (!object(value) || !object(value.data) || !object(value.meta)) return false
+  const { data, meta } = value
+  if (
+    !object(data.region) ||
+    data.region.regionCode !== request.regionCode ||
+    !object(data.businessType) ||
+    data.businessType.businessTypeCode !== request.industryCode ||
+    !object(data.metrics) ||
+    !str(meta.requestId) ||
+    typeof meta.referenceMonth !== 'string' ||
+    !/^\d{4}(0[1-9]|1[0-2])$/.test(meta.referenceMonth)
+  ) {
+    return false
+  }
+
+  const matchesMetric = (metric: unknown, unit: string, datasetCode: string) =>
+    object(metric) &&
+    isMetricDecision(metric) &&
+    metric.unit === unit &&
+    object(metric.source) &&
+    metric.source.datasetCode === datasetCode &&
+    calendarDate(metric.source.referenceOn)
+
+  return (
+    matchesMetric(data.metrics.registeredPopulation, 'PERSON', 'POPULATION_MONTH') &&
+    matchesMetric(data.metrics.listedStoreCount, 'STORE', 'STORE_SNAPSHOT')
+  )
 }
 
 const researchForecast = (value: unknown) => {
@@ -131,10 +165,17 @@ export function isAnalysis(value: unknown): value is Analysis {
     return false
   }
 
+  const ai = value.ai
+  if (ai != null && !isAiAnalysisDisplay(ai)) return false
+  const periodMatches =
+    ai?.schemaVersion === '2.0'
+      ? value.period === null
+      : /^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)
+
   return (
     str(value.regionName) &&
     str(value.industryName) &&
-    (/^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)) &&
+    periodMatches &&
     str(value.analyzedAt) &&
     /(?:Z|[+-]\d{2}:\d{2})$/.test(value.analyzedAt) &&
     Number.isFinite(Date.parse(value.analyzedAt)) &&
@@ -184,6 +225,11 @@ export function isAnalysis(value: unknown): value is Analysis {
     ) &&
     str(value.summary) &&
     list(value.recommendations, str) &&
+    (value.regionalSummary === undefined ||
+      isRegionalSummary(value.regionalSummary, {
+        regionCode: value.request.regionCode,
+        industryCode: value.request.industryCode,
+      })) &&
     researchForecast(value.researchForecast)
   )
 }

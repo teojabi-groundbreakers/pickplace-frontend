@@ -1,6 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import type { Analysis, AnalysisRequest, Catalog, DemoScenario } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisDisplayContext,
+  AnalysisRequest,
+  Catalog,
+  DemoScenario,
+} from '../types/analysis'
 import type { MapRegion, MapViewData } from '../types/map'
 import type { SearchSelection } from '../lib/selection'
 import type { AnalysisState } from '../lib/useAnalysis'
@@ -29,7 +35,11 @@ export function Dashboard({
   catalogError: string
   retryCatalog: () => void
   state: AnalysisState
-  run: (request: AnalysisRequest, scenario?: DemoScenario) => Promise<void>
+  run: (
+    request: AnalysisRequest,
+    scenario?: DemoScenario,
+    context?: AnalysisDisplayContext,
+  ) => Promise<void>
   saved: Analysis[]
   onSave: (analysis: Analysis) => void
 }) {

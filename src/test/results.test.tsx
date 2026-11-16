@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createDemoAnalysis, defaultRequest } from '../data/demo'
@@ -14,6 +14,24 @@ describe('결과 컴포넌트', () => {
     render(<ScoreCards analysis={analysis} />)
     expect(screen.getByText('낮을수록 안정적인 상권이에요')).toBeInTheDocument()
     expect(screen.getByText('A등급')).toBeInTheDocument()
+  })
+  it('일부 점수만 있을 때 실제 0점 카드를 표시한다', () => {
+    render(
+      <ScoreCards
+        analysis={{
+          ...analysis,
+          scores: {
+            overall: null,
+            growth: null,
+            fit: null,
+            risk: { value: 0, grade: '낮음', description: '위험 신호 점수' },
+          },
+        }}
+      />,
+    )
+    const card = screen.getByRole('article')
+    expect(within(card).getByText('위험도')).toBeVisible()
+    expect(within(card).getByText('0')).toBeVisible()
   })
   it('기간 및 지표를 바꾸고 원본 수치를 확인한다', async () => {
     const user = userEvent.setup()
@@ -35,9 +53,22 @@ describe('결과 컴포넌트', () => {
     expect(screen.getByText('계산 불가')).toBeInTheDocument()
     expect(screen.queryByText('0.0%')).not.toBeInTheDocument()
   })
-  it('추이 데이터가 없으면 차트 대신 안내를 표시한다', () => {
-    render(<TrendChart trends={[]} />)
-    expect(screen.getByText('표시할 추이 데이터가 없습니다.')).toBeInTheDocument()
+  it('빈 배열이나 모든 값이 결측인 추이는 숨기고 실제 값 0은 표시한다', () => {
+    const emptyPoint = {
+      month: '2026-01',
+      sales: null,
+      averageSales: null,
+      population: null,
+      stores: null,
+      openings: null,
+      closures: null,
+    }
+    const { rerender } = render(<TrendChart trends={[]} />)
+    expect(screen.queryByRole('region', { name: '상권 추이 차트' })).not.toBeInTheDocument()
+    rerender(<TrendChart trends={[emptyPoint]} />)
+    expect(screen.queryByRole('region', { name: '상권 추이 차트' })).not.toBeInTheDocument()
+    rerender(<TrendChart trends={[{ ...emptyPoint, sales: 0 }]} />)
+    expect(screen.getByRole('button', { name: '2026-01: 0만원' })).toBeVisible()
   })
   it('지표 탭을 키보드로 선택하고 차트 지점을 활성화한다', async () => {
     const user = userEvent.setup()

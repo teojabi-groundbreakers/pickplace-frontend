@@ -1,5 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import type { Analysis, AnalysisRequest, DemoScenario, IndustryCategory } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisDisplayContext,
+  AnalysisRequest,
+  DemoScenario,
+  IndustryCategory,
+} from '../types/analysis'
 import type { MapRegion, MapViewData } from '../types/map'
 import type { AnalysisState } from '../lib/useAnalysis'
 import { useReferenceSearch } from '../lib/useReferenceSearch'
@@ -41,7 +47,11 @@ export function ReferenceDashboard({
   onSave,
 }: {
   state: AnalysisState
-  run: (request: AnalysisRequest, scenario?: DemoScenario) => Promise<void>
+  run: (
+    request: AnalysisRequest,
+    scenario?: DemoScenario,
+    context?: AnalysisDisplayContext,
+  ) => Promise<void>
   saved: Analysis[]
   onSave: (analysis: Analysis) => void
 }) {
@@ -251,7 +261,18 @@ export function ReferenceDashboard({
     setExploreRegion(null)
     setDismissedState(null)
     setInvalidatedState(null)
-    void run({ regionCode: region.code, industryCode: nextIndustryCode })
+
+    const industryName =
+      businessTypes.status === 'success'
+        ? businessTypes.items.find((item) => item.businessTypeCode === nextIndustryCode)
+            ?.businessTypeName
+        : null
+
+    void run({ regionCode: region.code, industryCode: nextIndustryCode }, undefined, {
+      regionName: region.fullName,
+      industryName: industryName || nextIndustryCode,
+      center: region.center,
+    })
   }
 
   return (

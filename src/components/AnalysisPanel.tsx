@@ -1,11 +1,17 @@
 import { useLayoutEffect, useRef } from 'react'
 import { ArrowDownToLine, Bookmark, ChevronRight, MapPin, PanelRightOpen, X } from 'lucide-react'
-import type { Analysis, AnalysisRequest, DemoScenario } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisDisplayContext,
+  AnalysisRequest,
+  DemoScenario,
+} from '../types/analysis'
 import type { AnalysisState } from '../lib/useAnalysis'
 import { downloadReport } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
 import { TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
+import { AiDiagnosis, RegionalSummaryCard } from './AiDiagnosis'
 import { Factors, Summary, Competition } from './Insights'
 import { Badge, Button, EmptyState } from './ui'
 
@@ -19,7 +25,11 @@ export function AnalysisPanel({
   setDismissedState,
 }: {
   state: AnalysisState
-  run: (request: AnalysisRequest, scenario?: DemoScenario) => Promise<void>
+  run: (
+    request: AnalysisRequest,
+    scenario?: DemoScenario,
+    context?: AnalysisDisplayContext,
+  ) => Promise<void>
   saved: Analysis[]
   onSave: (analysis: Analysis) => void
   resultMatchesSelection: boolean
@@ -113,7 +123,7 @@ export function AnalysisPanel({
             type="error"
             title="분석을 완료하지 못했어요"
             message={state.message}
-            onRetry={() => void run(state.request)}
+            onRetry={() => void run(state.request, undefined, state.context)}
           />
         )}
         {state.status === 'empty' && (
@@ -135,7 +145,9 @@ export function AnalysisPanel({
                     <ChevronRight size={15} />
                     <span>{result.industryName}</span>
                   </h2>
-                  <p>{result.period} 기준 · 선택한 상권의 현재와 가능성을 함께 살펴보세요.</p>
+                  {!result.ai && (
+                    <p>{result.period} 기준 · 선택한 상권의 현재와 가능성을 함께 살펴보세요.</p>
+                  )}
                 </div>
               </div>
               <div className="result-actions">
@@ -177,29 +189,30 @@ export function AnalysisPanel({
               </div>
             )}
             <ScoreCards analysis={result} />
+            {result.regionalSummary && <RegionalSummaryCard summary={result.regionalSummary} />}
+            {result.ai && (
+              <AiDiagnosis
+                data={result.ai}
+                hasRegionalSummary={Boolean(result.regionalSummary)}
+              />
+            )}
             {result.researchForecast && <ResearchForecast data={result.researchForecast} />}
             <div className="primary-grid">
-              {result.trends.length > 0 ? (
-                <TrendChart trends={result.trends} />
-              ) : (
-                <section
-                  className="panel trend-panel"
-                  aria-label="상권 추이"
-                >
-                  <h2>상권 데이터 한눈에</h2>
-                  <p className="no-data">제공된 추이 데이터가 없습니다.</p>
-                </section>
-              )}
+              <TrendChart trends={result.trends} />
               <Summary analysis={result} />
             </div>
-            <div className="result-factors">
-              <Factors factors={result.factors} />
-            </div>
+            {result.factors.length > 0 && (
+              <div className="result-factors">
+                <Factors factors={result.factors} />
+              </div>
+            )}
             <Competition data={result.competition} />
             <p className="analysis-footnote">
               {result.source === 'demo'
                 ? '표시된 수치, 평가 및 AI 진단 문구는 모두 예시입니다.'
-                : `분석 기준 ${result.period} · 분석일 ${new Date(result.analyzedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}`}{' '}
+                : result.ai
+                  ? `화면 수신일 ${new Date(result.analyzedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+                  : `분석 기준 ${result.period} · 분석일 ${new Date(result.analyzedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}`}{' '}
               분석 결과와 함께 현장 방문 및 임대 조건을 확인해 주세요.
             </p>
           </div>
