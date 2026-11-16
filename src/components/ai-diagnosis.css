@@ -1,37 +1,96 @@
 .ai-diagnosis {
-  display: grid;
-  gap: 14px;
+  margin-bottom: var(--space-4);
 }
 
 .ai-diagnosis .panel-header {
-  margin-bottom: 0;
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
 }
 
-.ai-data-notice {
-  color: #886234;
+.ai-diagnosis .badge {
+  font-size: 11px;
+}
+
+.ai-diagnosis .badge-green {
+  color: var(--color-brand);
+}
+
+.ai-diagnosis .badge-neutral {
+  color: #56644e;
+}
+
+.ai-diagnosis .badge-orange {
+  color: #775025;
+}
+
+.ai-diagnosis-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 20px var(--space-4);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.ai-as-of,
+.ai-indicator-period,
+.ai-indicator-comparison,
+.ai-indicator small,
+.ai-location-note {
+  color: #5e6a58;
+  font-size: 11px;
+}
+
+.ai-data-notice,
+.ai-request-notice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: #5e6a58;
+}
+
+.ai-request-notice {
+  background: #f7f0e3;
+  color: #775025;
 }
 
 .ai-indicator-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--space-3);
 }
 
 .ai-indicator {
   display: grid;
   align-content: start;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid #dfe5d8;
-  border-radius: 12px;
-  background: #f8faf5;
+  min-width: 0;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
 }
 
 .ai-indicator h3,
 .ai-statistics h3,
 .ai-warnings h3 {
-  margin: 0;
-  font-size: 0.95rem;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ai-indicator h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-brand-dark);
+}
+
+.ai-indicator h3 > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--color-brand);
 }
 
 .ai-statistics dl {
@@ -50,24 +109,25 @@
   margin: 0;
 }
 
-.ai-indicator p,
-.ai-indicator small,
-.ai-location-note {
-  margin: 0;
-}
-
 .ai-indicator-value {
-  font-size: 1.5rem;
+  color: var(--color-brand-dark);
+  font-size: 20px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.ai-indicator small,
-.ai-location-note {
-  color: #5e6a58;
-  line-height: 1.5;
+.ai-indicator-unavailable {
+  color: #775025;
 }
 
 .ai-warnings ul {
-  margin: 8px 0 0;
-  padding-left: 20px;
+  margin: var(--space-1) 0 0;
+  padding-inline-start: var(--space-4);
+  color: #5e6a58;
+}
+
+@media (max-width: 760px) {
+  .ai-diagnosis-body {
+    padding-inline: var(--space-4);
+  }
 }
