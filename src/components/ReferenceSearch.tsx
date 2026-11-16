@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { ChevronDown, Coffee, LoaderCircle, MapPin, Search, SlidersHorizontal } from 'lucide-react'
 import type { AdministrativeDong, BusinessType, District } from '../lib/backendReference'
 import type { MapRegion } from '../types/map'
+import type { ReferenceProvince } from '../lib/referenceAreas'
 import { Button } from './ui'
 
 export type ReferenceState<T> =
@@ -11,7 +12,12 @@ export type ReferenceState<T> =
   | { status: 'error'; message: string; requestId: string | null }
 
 const noDistricts: District[] = []
-const noDongs: AdministrativeDong[] = []
+const noDongs: ReferenceDongOption[] = []
+
+export type ReferenceDongOption = Pick<
+  AdministrativeDong,
+  'dongCode' | 'dongName' | 'officialCodeStatus'
+>
 
 export type LocationState = {
   status: 'idle' | 'loading' | 'success' | 'empty' | 'error'
@@ -19,15 +25,20 @@ export type LocationState = {
 }
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'partial' | 'error'
-type SearchDong = { district: District; dong: AdministrativeDong }
-type SearchMatch =
-  | { type: 'district'; district: District }
-  | { type: 'dong'; district: District; dong: AdministrativeDong }
+type SearchDong = { district: District; dong: ReferenceDongOption }
+type SearchMatch = { type: 'district'; district: District } | ({ type: 'dong' } & SearchDong)
 
 type Props = {
+  provinces: ReferenceProvince[]
+  provinceState?: ReferenceState<ReferenceProvince>
+  onRetryProvinces?: () => void
+  nationwide?: boolean
+  analysisUnavailableMessage?: string
+  regionNotice?: string | null
   districts: ReferenceState<District>
-  dongs: ReferenceState<AdministrativeDong>
+  dongs: ReferenceState<ReferenceDongOption>
   businessTypes: ReferenceState<BusinessType>
+  provinceCode: string
   districtCode: string
   dongCode: string
   businessTypeCode: string
@@ -40,6 +51,7 @@ type Props = {
   searchFailedCount?: number
   onSearchActiveChange?: (active: boolean) => void
   onRetrySearch?: () => void
+  onProvinceChange: (code: string) => void
   onDistrictChange: (code: string) => void
   onDongChange: (code: string) => void
   onBusinessTypeChange: (code: string) => void
@@ -81,9 +93,16 @@ function Feedback<T>({
 }
 
 export function ReferenceSearch({
+  provinces,
+  provinceState,
+  onRetryProvinces,
+  nationwide = false,
+  analysisUnavailableMessage,
+  regionNotice,
   districts,
   dongs,
   businessTypes,
+  provinceCode,
   districtCode,
   dongCode,
   businessTypeCode,
@@ -96,6 +115,7 @@ export function ReferenceSearch({
   searchFailedCount = 0,
   onSearchActiveChange,
   onRetrySearch,
+  onProvinceChange,
   onDistrictChange,
   onDongChange,
   onBusinessTypeChange,
@@ -160,6 +180,10 @@ export function ReferenceSearch({
     onSearchActiveChange?.(false)
   }
   const submit = () => {
+    if (analysisUnavailableMessage) {
+      setError(analysisUnavailableMessage)
+      return
+    }
     if (locationState.status === 'loading') {
       setError('선택한 지역의 위치를 확인하고 있어요.')
       return
@@ -212,7 +236,10 @@ export function ReferenceSearch({
             aria-activedescendant={
               searching && activeIndex >= 0 ? `${id}-${activeIndex}` : undefined
             }
-            placeholder={selectedName || '시·군·구 또는 행정동 검색'}
+            placeholder={
+              selectedName ||
+              (nationwide ? '시·군·구 또는 읍·면·행정동 검색' : '시·군·구 또는 행정동 검색')
+            }
             value={query}
             disabled={pending}
             autoComplete="off"
@@ -284,7 +311,9 @@ export function ReferenceSearch({
                   !searchDongs &&
                   searchStatus === 'idle' && (
                     <li className="search-no-results">
-                      선택한 구의 목록에 일치하는 지역이 없어요.
+                      {nationwide
+                        ? '선택한 지역의 목록에 일치하는 지역이 없어요.'
+                        : '선택한 구의 목록에 일치하는 지역이 없어요.'}
                     </li>
                   )}
                 {districts.status === 'success' &&
@@ -306,7 +335,11 @@ export function ReferenceSearch({
                   </li>
                 )}
                 {!searchDongs && (
-                  <li className="search-no-results">자치구와 선택한 구의 행정동에서 검색합니다.</li>
+                  <li className="search-no-results">
+                    {nationwide
+                      ? '선택한 시·도의 지역 그룹과 선택한 그룹의 읍·면·행정동에서 검색합니다.'
+                      : '자치구와 선택한 구의 행정동에서 검색합니다.'}
+                  </li>
                 )}
                 {(searchStatus === 'partial' || searchStatus === 'error') && onRetrySearch && (
                   <li>
@@ -356,7 +389,7 @@ export function ReferenceSearch({
         {!expanded && (
           <Button
             className="map-quick-analyze"
-            disabled={pending}
+            disabled={pending || Boolean(analysisUnavailableMessage)}
             onClick={submit}
           >
             {pending && (
@@ -369,6 +402,22 @@ export function ReferenceSearch({
           </Button>
         )}
       </div>
+      {analysisUnavailableMessage && (
+        <p
+          className="reference-location-feedback"
+          role="status"
+        >
+          {analysisUnavailableMessage}
+        </p>
+      )}
+      {regionNotice && (
+        <p
+          className="reference-location-feedback"
+          role="status"
+        >
+          {regionNotice}
+        </p>
+      )}
       {locationState.status === 'loading' && (
         <p
           className="reference-location-feedback"
@@ -418,17 +467,48 @@ export function ReferenceSearch({
               )}
               <div className="filter-selects">
                 <label className="select-wrap">
-                  <span className="sr-only">자치구</span>
+                  <span className="sr-only">시·도</span>
                   <select
-                    aria-label="자치구"
+                    aria-label="시·도"
+                    value={provinceCode}
+                    disabled={
+                      Boolean(provinceState && provinceState.status !== 'success') ||
+                      provinces.length === 0
+                    }
+                    onChange={(event) => {
+                      setError('')
+                      onProvinceChange(event.target.value)
+                    }}
+                  >
+                    <option value="">시·도 선택</option>
+                    {provinces.map((province) => (
+                      <option
+                        key={province.code}
+                        value={province.code}
+                      >
+                        {province.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={15}
+                    aria-hidden="true"
+                  />
+                </label>
+                <label className="select-wrap">
+                  <span className="sr-only">시·군·구</span>
+                  <select
+                    aria-label="시·군·구"
                     value={districtCode}
                     onChange={(event) => {
                       setError('')
                       onDistrictChange(event.target.value)
                     }}
-                    disabled={districts.status !== 'success' || districtItems.length === 0}
+                    disabled={
+                      !provinceCode || districts.status !== 'success' || districtItems.length === 0
+                    }
                   >
-                    <option value="">자치구 선택</option>
+                    <option value="">시·군·구 선택</option>
                     {districtItems.map((item) => (
                       <option
                         key={item.districtCode}
@@ -444,9 +524,9 @@ export function ReferenceSearch({
                   />
                 </label>
                 <label className="select-wrap">
-                  <span className="sr-only">행정동</span>
+                  <span className="sr-only">{nationwide ? '읍·면·행정동' : '행정동'}</span>
                   <select
-                    aria-label="행정동"
+                    aria-label={nationwide ? '읍·면·행정동' : '행정동'}
                     value={dongCode}
                     onChange={(event) => {
                       setError('')
@@ -454,7 +534,7 @@ export function ReferenceSearch({
                     }}
                     disabled={!districtCode || dongs.status !== 'success' || dongItems.length === 0}
                   >
-                    <option value="">행정동 선택</option>
+                    <option value="">{nationwide ? '읍·면·행정동 선택' : '행정동 선택'}</option>
                     {dongItems.map((item) => (
                       <option
                         key={item.dongCode}
@@ -509,6 +589,7 @@ export function ReferenceSearch({
             <Button
               type="submit"
               className="analyze-button"
+              disabled={Boolean(analysisUnavailableMessage)}
             >
               {pending ? '분석 중' : '상권 분석하기'}
             </Button>
@@ -516,19 +597,30 @@ export function ReferenceSearch({
         </form>
       </div>
       <div className="reference-feedback">
+        {provinceState && onRetryProvinces && (
+          <Feedback
+            state={provinceState}
+            loading="시·도 목록을 불러오고 있어요."
+            empty="시·도 목록이 비어 있어요."
+            retryLabel="시·도 다시 불러오기"
+            onRetry={onRetryProvinces}
+          />
+        )}
         <Feedback
           state={districts}
-          loading="자치구 목록을 불러오고 있어요."
-          empty="자치구 목록이 비어 있어요."
-          retryLabel="자치구 다시 불러오기"
+          loading={nationwide ? '지역 목록을 불러오고 있어요.' : '자치구 목록을 불러오고 있어요.'}
+          empty={nationwide ? '지역 목록이 비어 있어요.' : '자치구 목록이 비어 있어요.'}
+          retryLabel={nationwide ? '지역 다시 불러오기' : '자치구 다시 불러오기'}
           onRetry={onRetryDistricts}
         />
         {districtCode && (
           <Feedback
             state={dongs}
-            loading="행정동 목록을 불러오고 있어요."
-            empty="행정동 목록이 비어 있어요."
-            retryLabel="행정동 다시 불러오기"
+            loading={
+              nationwide ? '읍·면·행정동 목록을 불러오고 있어요.' : '행정동 목록을 불러오고 있어요.'
+            }
+            empty={nationwide ? '읍·면·행정동 목록이 비어 있어요.' : '행정동 목록이 비어 있어요.'}
+            retryLabel={nationwide ? '읍·면·행정동 다시 불러오기' : '행정동 다시 불러오기'}
             onRetry={onRetryDongs}
           />
         )}

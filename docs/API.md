@@ -2,7 +2,7 @@
 
 ## 전국 H10 목록 연계 준비
 
-2026-11-08 최신 BE 합의에 따라 시·도, 그룹, 읍·면·행정동 목록 클라이언트와 선택 상태는 H10을 사용한다. 공개 `regionVersion`·`selectionRegionVersion`과 버전 충돌에 따른 강제 재선택은 도입을 보류했다. 이 PR의 범위는 목록 클라이언트와 선택 상태이며, 기본 화면 연결과 지도·분석 연동은 별도 작업이다.
+2026-11-08 최신 BE 합의에 따라 시·도, 그룹, 읍·면·행정동 목록 클라이언트와 선택 상태는 H10을 사용한다. 공개 `regionVersion`·`selectionRegionVersion`과 버전 충돌에 따른 강제 재선택은 도입을 보류했다. 전국 모드에서는 기존 검색 조건의 3단계 선택 화면을 사용한다. 현황·분석 연동은 별도 계약으로 다룬다.
 
 - `GET /regions/provinces`에는 쿼리를 보내지 않는다. API 기본 URL의 `/api`는 별도로 붙는다.
 - `GET /regions/groups?provinceCode=...`과 `GET /regions/localities?groupCode=...`에는 각 부모의 10자리 H10 원본만 전달한다.
@@ -21,7 +21,7 @@ BE는 현재 게시 자료로 코드의 존재·역할·소속·상태를 검증
 
 ## 현재 BE 기준정보 API
 
-실제 API 모드의 FE는 `GET /districts`, `GET /districts/{districtCode}/administrative-dongs`, `GET /business-types`를 각각 호출합니다. 성공의 `data.items`와 `meta.requestId`, 오류의 `error.code`·`meta.requestId`를 검증합니다. 정상 빈 목록과 오류는 분리하고 목록마다 재시도합니다. 서버가 반환한 5자리 구 코드, 8자리 원천 행정동 코드, 공식 대응 상태·기준 버전 및 `CS...` 업종 코드를 보존합니다. `LEGACY`는 과거 코드로 표시합니다.
+기존 서울 실제 API 모드의 FE는 `GET /districts`, `GET /districts/{districtCode}/administrative-dongs`, `GET /business-types`를 각각 호출합니다. 성공의 `data.items`와 `meta.requestId`, 오류의 `error.code`·`meta.requestId`를 검증합니다. 정상 빈 목록과 오류는 분리하고 목록마다 재시도합니다. 서버가 반환한 5자리 구 코드, 8자리 원천 행정동 코드, 공식 대응 상태·기준 버전 및 `CS...` 업종 코드를 보존합니다. `LEGACY`는 과거 코드로 표시합니다.
 
 기존 지도 상단 검색창·조건 선택 UI에 목록을 표시합니다. 이름 검색을 시작할 때 구별 동 목록을 최대 4건 병렬로 조회하고 구별 성공 결과를 캐시하며, 미완료·부분 실패와 재시도를 표시합니다. 이 목록에는 지도 좌표나 업종 대분류가 없으므로 기존 데모 `Catalog`로 합성하지 않습니다. 이 작업 브랜치에는 선택한 구·동의 지도 이동이 연결되지 않았습니다. 지역의 검증된 위치가 없을 때 분석을 차단하며, 지도에서 카카오 좌표 조회로 확인한 H10과 서버 업종을 분석 요청에 전달합니다. 선택 위치 이동은 #16의 후속 통합 범위입니다. BE의 분석 API는 현재 미구현이므로 오류가 반환되며 데모로 대체하지 않습니다. 8자리와 H10을 임의 절삭·접미사 또는 이름 추정으로 변환하지 않습니다.
 

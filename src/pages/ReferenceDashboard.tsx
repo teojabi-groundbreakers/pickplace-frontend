@@ -4,6 +4,7 @@ import type { MapRegion, MapViewData } from '../types/map'
 import type { AnalysisState } from '../lib/useAnalysis'
 import { useReferenceSearch } from '../lib/useReferenceSearch'
 import { config } from '../lib/config'
+import { referenceProvinces, seoulProvinceCode } from '../lib/referenceAreas'
 import { ApiError } from '../lib/api'
 import { mapReferenceCode } from '../lib/referenceCodeMapping'
 import {
@@ -54,6 +55,7 @@ export function ReferenceDashboard({
   const [locationAttempt, setLocationAttempt] = useState(0)
   const locationRequest = useRef<AbortController | null>(null)
   const [lastCenter, setLastCenter] = useState<[number, number]>(initialCenter)
+  const [provinceCode, setProvinceCode] = useState(seoulProvinceCode)
   const [districtCode, setDistrictCode] = useState('')
   const [dongCode, setDongCode] = useState('')
   const [industryCode, setIndustryCode] = useState('')
@@ -64,6 +66,7 @@ export function ReferenceDashboard({
   const [pointRegion, setPointRegion] = useState<MapRegion | null>(null)
   const [exploreRegion, setExploreRegion] = useState<MapRegion | null>(null)
   const [dismissedState, setDismissedState] = useState<AnalysisState | null>(null)
+  const [invalidatedState, setInvalidatedState] = useState<AnalysisState | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -113,6 +116,7 @@ export function ReferenceDashboard({
     searchActive,
   )
 
+  const selectedProvince = referenceProvinces.find((item) => item.code === provinceCode)
   const selectedDistrict =
     districts.status === 'success'
       ? districts.items.find((item) => item.districtCode === districtCode) || null
@@ -127,9 +131,10 @@ export function ReferenceDashboard({
   const dongListStatus = dongCode ? dongs.status : 'idle'
 
   useEffect(() => {
-    if (!selectedDistrict || dongListStatus === 'loading') return
+    if (!selectedProvince || !selectedDistrict || dongListStatus === 'loading') return
     const controller = new AbortController()
     const district = selectedDistrict
+    const province = selectedProvince
     locationRequest.current = controller
 
     async function findLocation() {
@@ -153,12 +158,14 @@ export function ReferenceDashboard({
             mapping.officialName,
             config.kakaoMapAppKey,
             controller.signal,
+            province.name,
           )
         } else {
           found = await locateReferenceDistrict(
             district.districtName,
             config.kakaoMapAppKey,
             controller.signal,
+            province.name,
           )
         }
         if (controller.signal.aborted) return
@@ -187,7 +194,7 @@ export function ReferenceDashboard({
 
     void Promise.resolve().then(findLocation)
     return () => controller.abort()
-  }, [selectedDistrict, selectedDong, dongCode, dongListStatus, locationAttempt])
+  }, [selectedProvince, selectedDistrict, selectedDong, dongCode, dongListStatus, locationAttempt])
 
   const categories = useMemo<IndustryCategory[]>(() => {
     if (businessTypes.status !== 'success') return []
@@ -205,6 +212,7 @@ export function ReferenceDashboard({
   const result = state.status === 'success' ? state.result : null
   const resultMatchesSelection = Boolean(
     result &&
+    state !== invalidatedState &&
     !districtCode &&
     (!industryTouched || result.request.industryCode === industryCode) &&
     (!pointRegion || result.request.regionCode === pointRegion.code),
@@ -233,6 +241,8 @@ export function ReferenceDashboard({
     setLocationState({ status: 'idle' })
     setLastCenter(region.center)
     setPointRegion(region)
+    const province = referenceProvinces.find((item) => region.fullName.startsWith(`${item.name} `))
+    setProvinceCode(province?.code || '')
     setDistrictCode('')
     setDongCode('')
     setDongs({ status: 'idle' })
@@ -240,6 +250,7 @@ export function ReferenceDashboard({
     setIndustryTouched(true)
     setExploreRegion(null)
     setDismissedState(null)
+    setInvalidatedState(null)
     void run({ regionCode: region.code, industryCode: nextIndustryCode })
   }
 
@@ -293,9 +304,11 @@ export function ReferenceDashboard({
           }}
         >
           <ReferenceSearch
+            provinces={referenceProvinces}
             districts={districts}
             dongs={dongs}
             businessTypes={businessTypes}
+            provinceCode={provinceCode}
             districtCode={districtCode}
             dongCode={dongCode}
             businessTypeCode={industryCode}
@@ -315,9 +328,24 @@ export function ReferenceDashboard({
             searchFailedCount={referenceSearch.failedCount}
             onRetrySearch={referenceSearch.retry}
             onSearchActiveChange={setSearchActive}
+            onProvinceChange={(code) => {
+              if (code === provinceCode) return
+              locationRequest.current?.abort()
+              setProvinceCode(code)
+              setDistrictCode('')
+              setDongCode('')
+              setDongs({ status: 'idle' })
+              setLocationState({ status: 'idle' })
+              setPointRegion(null)
+              setExploreRegion(null)
+              setInvalidatedState(state)
+            }}
             onDistrictChange={(code) => {
               if (code === districtCode && !dongCode) return
               locationRequest.current?.abort()
+              if (code && !provinceCode && referenceProvinces.length === 1) {
+                setProvinceCode(referenceProvinces[0].code)
+              }
               setLocationState({ status: code ? 'loading' : 'idle' })
               setDistrictCode(code)
               setPointRegion(null)

@@ -186,7 +186,15 @@ function reducer(state: State, action: Action): State {
           !state.groups.items.some((item) => item.regionCode === action.code))
       )
         return state
-      if (action.code === state.groupCode) return state
+      if (action.code === state.groupCode) {
+        if (!state.localityCode) return state
+        return {
+          ...state,
+          localityCode: '',
+          notice: null,
+          selectionRevision: state.selectionRevision + 1,
+        }
+      }
       return {
         ...state,
         groupCode: action.code,

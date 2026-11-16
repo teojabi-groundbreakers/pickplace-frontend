@@ -31,6 +31,8 @@ export function AreaMap({
   onLookupStart,
   onUserInteraction,
   preserveViewport,
+  analysisUnavailableMessage,
+  lookupRevision,
 }: {
   data: MapViewData
   regions: MapRegion[]
@@ -44,11 +46,13 @@ export function AreaMap({
   onLookupStart?: () => void
   onUserInteraction?: () => void
   preserveViewport?: boolean
+  analysisUnavailableMessage?: string
+  lookupRevision?: number
 }) {
   const request = useRef<AbortController | null>(null)
   const lookupContext = useMemo(
-    () => ({ selectedRegionCode, regions, exploreCode: exploreRegion?.code }),
-    [selectedRegionCode, regions, exploreRegion?.code],
+    () => ({ selectedRegionCode, regions, exploreCode: exploreRegion?.code, lookupRevision }),
+    [selectedRegionCode, regions, exploreRegion?.code, lookupRevision],
   )
   const [lookupState, setLookupState] = useState<{
     context: typeof lookupContext
@@ -305,6 +309,7 @@ export function AreaMap({
                 },
               }}
               disabled={disabled}
+              analysisUnavailableMessage={analysisUnavailableMessage}
               onExplore={(region) => {
                 onExploreRegion(region)
                 closeLookup()

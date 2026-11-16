@@ -96,6 +96,24 @@ describe('전국 H10 지역 선택 상태', () => {
     expect(result.current.selectionRevision).toBeGreaterThan(revision)
   })
 
+  it('선택 중인 그룹을 다시 고르면 하위 지역을 해제하고 목록은 유지한다', async () => {
+    const { result } = renderHook(() => useNationwideRegions())
+    await waitFor(() => expect(result.current.provinces.status).toBe('success'))
+    act(() => result.current.selectProvince(seoul.regionCode))
+    await waitFor(() => expect(result.current.groups.status).toBe('success'))
+    act(() => result.current.selectGroup(jongno.regionCode))
+    await waitFor(() => expect(result.current.localities.status).toBe('success'))
+    act(() => result.current.selectLocality(dong.regionCode))
+    const revision = result.current.selectionRevision
+
+    act(() => result.current.selectGroup(jongno.regionCode))
+
+    expect(result.current.localityCode).toBe('')
+    expect(result.current.localities).toEqual({ status: 'success', items: [dong] })
+    expect(result.current.selectionRevision).toBeGreaterThan(revision)
+    expect(api.getLocalities).toHaveBeenCalledTimes(1)
+  })
+
   it('서버가 명시적으로 autoSelect한 그룹만 선택한다', async () => {
     api.getGroups.mockResolvedValue(list([sejongGroup]))
     api.getLocalities.mockResolvedValue(list([]))
