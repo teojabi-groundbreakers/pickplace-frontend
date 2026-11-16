@@ -170,23 +170,48 @@ describe('실제 백엔드 기준정보 화면', () => {
         screen.getByText('제공 불가: 사용 가능한 예측 모델 파일이 없습니다.'),
       ).toBeInTheDocument()
       expect(screen.getByText('42.0 / 100')).toBeInTheDocument()
-      expect(screen.getByText('종합점수는 아직 제공되지 않습니다.')).toBeInTheDocument()
+      expect(screen.queryByText('종합 상권 점수')).not.toBeInTheDocument()
       expect(screen.getByText(/정보 기준일 2026-11-13/)).toBeInTheDocument()
     } finally {
       config.demoMode = originalMode
     }
   })
 
-  it('AI 요청 보류 사유를 표시하고 빈 결과에 점수와 추이를 생성하지 않는다', async () => {
+  it('게시 현황과 AI 보류 사유를 표시하고 데이터 없는 결과 카드는 숨긴다', async () => {
     const request = { regionCode: '1111051500', industryCode: 'I21201' }
     api.getBusinessTypes.mockResolvedValue(
       payload([
         { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
       ]),
     )
+    const source = { referenceOn: '2026-09-30' }
+    const publishedSummary = {
+      data: {
+        region: { regionCode: request.regionCode },
+        businessType: { businessTypeCode: request.industryCode },
+        metrics: {
+          registeredPopulation: {
+            value: 10601,
+            unit: 'PERSON',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { ...source, datasetCode: 'POPULATION_MONTH' },
+          },
+          listedStoreCount: {
+            value: 80,
+            unit: 'STORE',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { ...source, datasetCode: 'STORE_SNAPSHOT' },
+          },
+        },
+      },
+      meta: { requestId: 'regional-summary', referenceMonth: '202609' },
+    }
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(publishedSummary)))
     vi.stubGlobal('fetch', fetchMock)
     const originalMode = config.demoMode
     config.demoMode = false
@@ -214,8 +239,16 @@ describe('실제 백엔드 기준정보 화면', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         '지역·업종 코드의 공식 대응을 확인하지 못했습니다.',
       )
-      expect(screen.queryByText('42.0 / 100')).not.toBeInTheDocument()
-      expect(screen.getByText('제공된 추이 데이터가 없습니다.')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '지역·업종 현황' })).toBeVisible()
+      expect(screen.getByText('10,601명')).toBeVisible()
+      expect(screen.getByText('80개')).toBeVisible()
+      expect(screen.getAllByText('2026년 9월 기준')).toHaveLength(2)
+      expect(screen.queryByRole('article')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', {
+          name: /상권 데이터 한눈에|점수에 영향을 준 요인|주변 상권과 비교하면/,
+        }),
+      ).not.toBeInTheDocument()
     } finally {
       config.demoMode = originalMode
     }

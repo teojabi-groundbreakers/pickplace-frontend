@@ -9,7 +9,7 @@ import type {
 import type { AnalysisState } from '../lib/useAnalysis'
 import { downloadReport } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
-import { EmptyTrendPanel, TrendChart } from './TrendChart'
+import { TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
 import { AiDiagnosis, RegionalSummaryCard } from './AiDiagnosis'
 import { Factors, Summary, Competition } from './Insights'
@@ -198,19 +198,14 @@ export function AnalysisPanel({
             )}
             {result.researchForecast && <ResearchForecast data={result.researchForecast} />}
             <div className="primary-grid">
-              {result.trends.length > 0 ? (
-                <TrendChart trends={result.trends} />
-              ) : (
-                <EmptyTrendPanel
-                  label="상권 추이"
-                  message="제공된 추이 데이터가 없습니다."
-                />
-              )}
+              <TrendChart trends={result.trends} />
               <Summary analysis={result} />
             </div>
-            <div className="result-factors">
-              <Factors factors={result.factors} />
-            </div>
+            {result.factors.length > 0 && (
+              <div className="result-factors">
+                <Factors factors={result.factors} />
+              </div>
+            )}
             <Competition data={result.competition} />
             <p className="analysis-footnote">
               {result.source === 'demo'

@@ -70,34 +70,24 @@ function shown(value: number | null): string {
   return value === null ? '제공되지 않음' : number.format(value)
 }
 
-export function EmptyTrendPanel({ label, message }: { label: string; message: string }) {
-  return (
-    <section
-      className="panel trend-panel"
-      aria-label={label}
-    >
-      <div className="panel-header">
-        <h2>상권 데이터 한눈에</h2>
-      </div>
-      <p className="no-data">{message}</p>
-    </section>
-  )
-}
-
 export function TrendChart({ trends }: { trends: TrendPoint[] }) {
   const [metric, setMetric] = useState<Metric>('sales')
   const [range, setRange] = useState(6)
   const [active, setActive] = useState<number | null>(null)
   const [showTable, setShowTable] = useState(false)
   const gradientId = useId().replace(/:/g, '')
-  if (trends.length === 0) {
-    return (
-      <EmptyTrendPanel
-        label="상권 추이 차트"
-        message="표시할 추이 데이터가 없습니다."
-      />
-    )
-  }
+  const hasData = trends.some((point) =>
+    [
+      point.sales,
+      point.population,
+      point.stores,
+      point.openings,
+      point.closures,
+      point.averageSales,
+    ].some((value) => value !== null),
+  )
+  if (!hasData) return null
+
   const data = trends.slice(-range)
   const info = metadata[metric]
   const last = data[data.length - 1]
