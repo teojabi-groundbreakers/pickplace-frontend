@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { config } from '../lib/config'
 import { getGroups, getLocalities, getProvinces } from '../lib/nationwideRegions'
 
-const version = 'mois-selection-20261026-p1-r1'
 const province = {
   regionCode: '3600000000',
   regionName: '세종특별자치시',
@@ -26,7 +25,6 @@ const locality = {
 }
 const metadata = {
   requestId: 'region-test-request',
-  regionVersion: version,
   codeSystem: 'MOIS_H10',
   sourceReferenceOn: '2026-10-30',
   sourceFileVersion: '20261026',
@@ -46,23 +44,23 @@ afterEach(() => {
 })
 
 describe('전국 H10 기준정보 API 준비', () => {
-  it('시·도와 세종 그룹·읍면동의 H10과 모든 메타데이터를 보존한다', async () => {
+  it('공개 선택 버전 없이 시·도와 세종 그룹·읍면동을 조회한다', async () => {
     fetchMock
       .mockResolvedValueOnce(response([province]))
       .mockResolvedValueOnce(response([group]))
       .mockResolvedValueOnce(response([locality]))
 
     expect(await getProvinces()).toEqual({ items: [province], ...metadata })
-    expect(await getGroups(province.regionCode, version)).toEqual({ items: [group], ...metadata })
-    expect(await getLocalities(group.regionCode, version)).toEqual({
+    expect(await getGroups(province.regionCode)).toEqual({ items: [group], ...metadata })
+    expect(await getLocalities(group.regionCode)).toEqual({
       items: [locality],
       ...metadata,
     })
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       `${config.apiBaseUrl}/regions/provinces`,
-      `${config.apiBaseUrl}/regions/groups?provinceCode=3600000000&regionVersion=${version}`,
-      `${config.apiBaseUrl}/regions/localities?groupCode=3611000000&regionVersion=${version}`,
+      `${config.apiBaseUrl}/regions/groups?provinceCode=3600000000`,
+      `${config.apiBaseUrl}/regions/localities?groupCode=3611000000`,
     ])
   })
 
@@ -72,33 +70,20 @@ describe('전국 H10 기준정보 API 준비', () => {
       .mockResolvedValueOnce(response([group, second]))
       .mockResolvedValueOnce(response([], { ...metadata, sourceReferenceOn: null }))
 
-    expect((await getGroups(province.regionCode, version)).items).toEqual([group, second])
-    expect(await getLocalities(group.regionCode, version)).toEqual({
+    expect((await getGroups(province.regionCode)).items).toEqual([group, second])
+    expect(await getLocalities(group.regionCode)).toEqual({
       items: [],
       ...metadata,
       sourceReferenceOn: null,
     })
   })
 
-  it.each([
-    ['', version],
-    ['360000000', version],
-    [' 3600000000', version],
-    ['３６００００００００', version],
-  ])('잘못된 H10 입력은 요청 전 거부한다', async (code, nextVersion) => {
-    await expect(getGroups(code, nextVersion)).rejects.toMatchObject({
-      status: 400,
-      code: 'INVALID_REGION_CODE',
-    })
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
-
-  it.each(['', ' version', 'invalid/version', 'a'.repeat(101)])(
-    '잘못된 버전은 요청 전 거부한다',
-    async (nextVersion) => {
-      await expect(getGroups(province.regionCode, nextVersion)).rejects.toMatchObject({
+  it.each(['', '360000000', ' 3600000000', '３６００００００００'])(
+    '잘못된 H10 입력은 요청 전 거부한다',
+    async (code) => {
+      await expect(getGroups(code)).rejects.toMatchObject({
         status: 400,
-        code: 'INVALID_REQUEST',
+        code: 'INVALID_REGION_CODE',
       })
       expect(fetchMock).not.toHaveBeenCalled()
     },
@@ -112,7 +97,7 @@ describe('전국 H10 기준정보 API 준비', () => {
     { ...group, regionName: '' },
   ])('잘못된 항목 또는 부모 관계를 요청 ID와 함께 거부한다', async (item) => {
     fetchMock.mockResolvedValueOnce(response([item]))
-    await expect(getGroups(province.regionCode, version)).rejects.toMatchObject({
+    await expect(getGroups(province.regionCode)).rejects.toMatchObject({
       status: 200,
       code: 'INVALID_RESPONSE',
       requestId: metadata.requestId,
@@ -123,17 +108,17 @@ describe('전국 H10 기준정보 API 준비', () => {
     fetchMock
       .mockResolvedValueOnce(response([group, group]))
       .mockResolvedValueOnce(response([{ ...province, autoSelect: true }]))
-    await expect(getGroups(province.regionCode, version)).rejects.toMatchObject({
+    await expect(getGroups(province.regionCode)).rejects.toMatchObject({
       code: 'INVALID_RESPONSE',
     })
     await expect(getProvinces()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
   })
 
-  it('하위 응답의 선택 버전이 요청과 다르면 성공으로 취급하지 않는다', async () => {
-    fetchMock.mockResolvedValueOnce(response([group], { ...metadata, regionVersion: 'other-v2' }))
-    await expect(getGroups(province.regionCode, version)).rejects.toMatchObject({
-      code: 'INVALID_RESPONSE',
-      requestId: metadata.requestId,
+  it('응답에 이전 선택 버전 필드가 있어도 사용하지 않는다', async () => {
+    fetchMock.mockResolvedValueOnce(response([group], { ...metadata, regionVersion: 'previous' }))
+    await expect(getGroups(province.regionCode)).resolves.toEqual({
+      items: [group],
+      ...metadata,
     })
   })
 
@@ -180,7 +165,7 @@ describe('전국 H10 기준정보 API 준비', () => {
     })
   })
 
-  it('버전 충돌과 서비스 준비 중을 코드·요청 ID와 함께 전파한다', async () => {
+  it('일반 충돌과 서비스 준비 중을 코드·요청 ID와 함께 전파한다', async () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(
@@ -198,7 +183,7 @@ describe('전국 H10 기준정보 API 준비', () => {
         }),
       )
 
-    await expect(getGroups(province.regionCode, version)).rejects.toMatchObject({
+    await expect(getGroups(province.regionCode)).rejects.toMatchObject({
       status: 409,
       code: 'REGION_VERSION_CONFLICT',
       requestId: 'conflict-request',

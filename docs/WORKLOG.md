@@ -1,5 +1,11 @@
 # 작업 이력
 
+## 2026-11-16 · 전국 H10 목록의 공개 선택 버전 조건 제거
+
+- 요청·변경: [PR #29](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/29)의 전국 목록 클라이언트와 상태에서 공개 `regionVersion`의 응답 필수 검사·하위 요청 전달·버전 충돌 강제 초기화를 제거했다. 부모 H10 검증, 404 부모 재조회, 503과 빈 목록 구분, 요청 취소 및 응답 경합 방지, 서버의 자동 선택 여부와 출처 메타데이터를 유지한다.
+- 검증: 수정한 FE 클라이언트에서 로컬 BE를 연결해 공개 버전 없이 시·도 16개, 서울 그룹 25개, 종로구 읍·면·행정동 17개를 조회했다. 회귀 테스트 35개 파일·276개와 포맷·린트·빌드·diff 검사를 통과했다.
+- 범위: 전국 목록 클라이언트·선택 상태와 문서·테스트를 변경했다. 기존 서울 원천 코드 대응의 출처 버전은 이번 공개 계약과 별개다. 기본 화면과 지도 연동 검증은 이번 테스트 범위에서 제외했다.
+
 ## 2026-11-08 · FE 전국 H10 연계 준비
 
 - 요청·범위: [FE 이슈 #28](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/28)과 [BE 이슈 #16](https://github.com/teojabi-groundbreakers/pickplace-backend/issues/16)의 H10 통일 방향에 맞춰 전국 지역 연계 준비를 진행한다.

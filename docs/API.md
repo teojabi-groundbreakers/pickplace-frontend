@@ -1,13 +1,15 @@
 # PickPlace FE · API 연동 계약 초안
 
-## 전국 H10 목록 연계 준비 · 계약 v0.2
+## 전국 H10 목록 연계 준비
 
-2026-11-08 사용자가 전달한 BE 설계 예시를 기준으로 시·도, 그룹, 읍·면·행정동의 H10 목록 클라이언트와 선택 상태를 준비한다. 이 문서의 보조 응답 필드·오류·자동 선택 정책은 BE 검토안이며 실제 API 구현이나 FE 기본 화면 연결이 완료됐다는 뜻은 아니다. 현재 서울 API의 기존 응답과 지도·분석 흐름을 유지한다.
+2026-11-08 최신 BE 합의에 따라 시·도, 그룹, 읍·면·행정동 목록 클라이언트와 선택 상태는 H10을 사용한다. 공개 `regionVersion`·`selectionRegionVersion`과 버전 충돌에 따른 강제 재선택은 도입을 보류했다. 이 PR의 범위는 목록 클라이언트와 선택 상태이며, 기본 화면 연결과 지도·분석 연동은 별도 작업이다.
 
-- `GET /regions/provinces`는 `data.items`와 `meta.regionVersion`·`codeSystem`·출처 및 요청 ID를 수신한다. API 기본 URL의 `/api`는 별도로 붙는다.
-- `GET /regions/groups?provinceCode=...&regionVersion=...`과 `GET /regions/localities?groupCode=...&regionVersion=...`에 각각 H10 원본과 동일 선택 버전을 전달한다. 실제 목록에서 10자리 문자열, 화면 계층·부모·중복·버전·출처를 검증하고 서버 순서를 보존한다.
-- 준비된 선택 상태는 409 `REGION_VERSION_CONFLICT` 시 지역 선택을 초기화하고 시·도 목록부터 재조회·재선택을 안내한다. UI가 기존 결과를 초기화할 수 있는 변경 신호를 제공하지만 실제 화면 연결은 미완료다. 404와 503, 정상 빈 목록은 구분하며 새 API 실패를 기존 서울 목록으로 자동 대체하지 않는다.
-- `autoSelect=true`만 자동 적용하며 그룹이 한 개라는 이유로 자동 선택하지 않는다. 현황·분석의 `regionVersion` 전달 위치, 저장 분석과 과거 지역 API는 별도 협의가 필요하다.
+- `GET /regions/provinces`에는 쿼리를 보내지 않는다. API 기본 URL의 `/api`는 별도로 붙는다.
+- `GET /regions/groups?provinceCode=...`과 `GET /regions/localities?groupCode=...`에는 각 부모의 10자리 H10 원본만 전달한다.
+- 세 목록은 `data.items`와 `meta.requestId`, `meta.codeSystem=MOIS_H10`, `meta.sourceReferenceOn`, `meta.sourceFileVersion`을 반환한다. 기준일은 날짜 문자열 또는 `null`이다. 출처 정보는 응답에서 보존한다. 항목의 H10·선택 단계·부모·중복을 검증하고 서버 순서를 유지한다.
+- `autoSelect=true`인 그룹만 자동 적용한다. 지역을 바꾸면 하위 선택을 초기화하고 진행 중인 하위 조회를 취소한다. 404 `REGION_NOT_FOUND`이면 유효하지 않은 선택을 해제하고 부모 목록을 다시 확인한다. 503의 준비 중·서비스 장애와 200 빈 목록을 구분한다.
+
+BE는 현재 게시 자료로 코드의 존재·역할·소속·상태를 검증한다. 보조 필드와 오류 문구의 세부 정책, 현황·분석과 과거 지역 API는 각각의 계약으로 관리한다.
 
 > **작업 브랜치 기준:** 기준정보 검색 화면 연결은 PR #18의 검토 대상입니다. 선택 지역 지도 이동은 #16의 후속 작업이며 실제 서버·모바일 검증은 미완료입니다.
 

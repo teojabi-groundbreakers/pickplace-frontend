@@ -12,7 +12,6 @@ const api = vi.hoisted(() => ({
 
 vi.mock('../lib/nationwideRegions', () => api)
 
-const version = 'selection-version-1'
 const seoul: RegionItem = {
   regionCode: '1100000000',
   regionName: '서울특별시',
@@ -49,10 +48,9 @@ const dong: RegionItem = {
   autoSelect: false,
 }
 
-function list(items: RegionItem[], regionVersion = version): RegionSelectionList {
+function list(items: RegionItem[]): RegionSelectionList {
   return {
     items,
-    regionVersion,
     codeSystem: 'MOIS_H10',
     sourceReferenceOn: null,
     sourceFileVersion: '20261026',
@@ -78,7 +76,7 @@ beforeEach(() => {
 })
 
 describe('전국 H10 지역 선택 상태', () => {
-  it('한 그룹만 있어도 자동 선택하지 않고 각 요청에 선택 버전을 전달한다', async () => {
+  it('한 그룹만 있어도 자동 선택하지 않고 각 하위 요청에 부모 H10을 전달한다', async () => {
     const { result } = renderHook(() => useNationwideRegions())
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
     expect(result.current.codeSystem).toBe('MOIS_H10')
@@ -87,15 +85,11 @@ describe('전국 H10 지역 선택 상태', () => {
     await waitFor(() => expect(result.current.groups.status).toBe('success'))
     expect(result.current.groupCode).toBe('')
     expect(api.getLocalities).not.toHaveBeenCalled()
-    expect(api.getGroups).toHaveBeenCalledWith(seoul.regionCode, version, expect.any(AbortSignal))
+    expect(api.getGroups).toHaveBeenCalledWith(seoul.regionCode, expect.any(AbortSignal))
 
     act(() => result.current.selectGroup(jongno.regionCode))
     await waitFor(() => expect(result.current.localities.status).toBe('success'))
-    expect(api.getLocalities).toHaveBeenCalledWith(
-      jongno.regionCode,
-      version,
-      expect.any(AbortSignal),
-    )
+    expect(api.getLocalities).toHaveBeenCalledWith(jongno.regionCode, expect.any(AbortSignal))
     const revision = result.current.selectionRevision
     act(() => result.current.selectLocality(dong.regionCode))
     expect(result.current.localityCode).toBe(dong.regionCode)
@@ -113,46 +107,46 @@ describe('전국 H10 지역 선택 상태', () => {
     expect(result.current.localities).toEqual({ status: 'success', items: [] })
   })
 
-  it('409에서는 모든 선택을 지우고 시·도를 한 번 다시 조회하며 자동 재선택하지 않는다', async () => {
+  it('그룹 조회에서 지역 없음 404를 받으면 시·도 목록을 다시 조회한다', async () => {
     const reloaded = deferred<RegionSelectionList>()
     api.getProvinces
       .mockResolvedValueOnce(list([seoul, sejong]))
       .mockReturnValueOnce(reloaded.promise)
-    api.getGroups.mockRejectedValue(new ApiError('version changed', 409, 'REGION_VERSION_CONFLICT'))
+    api.getGroups.mockRejectedValue(new ApiError('not found', 404, 'REGION_NOT_FOUND'))
     const { result } = renderHook(() => useNationwideRegions())
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
     act(() => result.current.selectProvince(seoul.regionCode))
     await waitFor(() => expect(api.getProvinces).toHaveBeenCalledTimes(2))
-    expect(result.current.regionVersion).toBeNull()
-    expect(result.current.codeSystem).toBeNull()
-    await act(async () => reloaded.resolve(list([seoul, sejong], 'selection-version-2')))
+    await act(async () => reloaded.resolve(list([sejong])))
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
-    expect(result.current.regionVersion).toBe('selection-version-2')
     expect(result.current.codeSystem).toBe('MOIS_H10')
+    expect(result.current.provinces).toEqual({ status: 'success', items: [sejong] })
     expect(result.current.provinceCode).toBe('')
     expect(result.current.groupCode).toBe('')
     expect(result.current.localityCode).toBe('')
-    expect(result.current.notice).toContain('시·도부터 다시 선택')
+    expect(result.current.notice).toContain('선택한 시·도를 다시 확인')
     expect(api.getGroups).toHaveBeenCalledTimes(1)
   })
 
-  it('읍면동 조회에서 409가 나면 그룹 선택도 지우고 결과 초기화 신호를 발생시킨다', async () => {
+  it('읍면동 조회에서 이전 버전 충돌 코드가 와도 일반 오류로 표시한다', async () => {
     api.getLocalities.mockRejectedValue(
-      new ApiError('version changed', 409, 'REGION_VERSION_CONFLICT'),
+      new ApiError('목록 조회 충돌', 409, 'REGION_VERSION_CONFLICT', 'conflict-request'),
     )
     const { result } = renderHook(() => useNationwideRegions())
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
     act(() => result.current.selectProvince(seoul.regionCode))
     await waitFor(() => expect(result.current.groups.status).toBe('success'))
-    const revision = result.current.selectionRevision
     act(() => result.current.selectGroup(jongno.regionCode))
-    await waitFor(() => expect(api.getProvinces).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(result.current.provinces.status).toBe('success'))
-    expect(result.current.provinceCode).toBe('')
-    expect(result.current.groupCode).toBe('')
+    await waitFor(() => expect(result.current.localities.status).toBe('error'))
+    expect(result.current.localities).toMatchObject({
+      code: 'REGION_VERSION_CONFLICT',
+      requestId: 'conflict-request',
+    })
+    expect(result.current.provinceCode).toBe(seoul.regionCode)
+    expect(result.current.groupCode).toBe(jongno.regionCode)
     expect(result.current.localityCode).toBe('')
-    expect(result.current.selectionRevision).toBeGreaterThan(revision)
-    expect(result.current.notice).toContain('시·도부터 다시 선택')
+    expect(result.current.notice).toBeNull()
+    expect(api.getProvinces).toHaveBeenCalledTimes(1)
     expect(api.getLocalities).toHaveBeenCalledTimes(1)
   })
 
@@ -164,7 +158,7 @@ describe('전국 H10 지역 선택 상태', () => {
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
     act(() => result.current.selectProvince(seoul.regionCode))
     await waitFor(() => expect(api.getGroups).toHaveBeenCalledTimes(1))
-    const signal = api.getGroups.mock.calls[0][2] as AbortSignal
+    const signal = api.getGroups.mock.calls[0][1] as AbortSignal
     act(() => result.current.selectProvince(sejong.regionCode))
     await waitFor(() => expect(result.current.groupCode).toBe(sejongGroup.regionCode))
     expect(signal.aborted).toBe(true)
@@ -218,13 +212,18 @@ describe('전국 H10 지역 선택 상태', () => {
     })
   })
 
-  it('요청과 다른 버전의 성공 응답을 선택에 사용하지 않는다', async () => {
-    api.getGroups.mockResolvedValue(list([jongno], 'different-version'))
+  it('같은 부모의 목록을 다시 시도할 때 먼저 보낸 요청을 무시한다', async () => {
+    const old = deferred<RegionSelectionList>()
+    api.getGroups.mockReturnValueOnce(old.promise).mockResolvedValueOnce(list([jongno]))
     const { result } = renderHook(() => useNationwideRegions())
     await waitFor(() => expect(result.current.provinces.status).toBe('success'))
     act(() => result.current.selectProvince(seoul.regionCode))
-    await waitFor(() => expect(result.current.groups.status).toBe('error'))
-    expect(result.current.groups).toMatchObject({ code: 'INVALID_RESPONSE' })
-    expect(result.current.groupCode).toBe('')
+    await waitFor(() => expect(api.getGroups).toHaveBeenCalledTimes(1))
+    const signal = api.getGroups.mock.calls[0][1] as AbortSignal
+    act(() => result.current.retryGroups())
+    await waitFor(() => expect(result.current.groups.status).toBe('success'))
+    expect(signal.aborted).toBe(true)
+    await act(async () => old.resolve(list([])))
+    expect(result.current.groups).toEqual({ status: 'success', items: [jongno] })
   })
 })
