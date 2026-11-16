@@ -43,3 +43,11 @@
   font: inherit;
   text-decoration: underline;
 }
+
+.reference-search .location-filter .filter-selects {
+  flex-wrap: wrap;
+}
+
+.reference-search .location-filter .select-wrap {
+  flex: 1 1 110px;
+}

@@ -71,6 +71,17 @@ describe('API 계약 및 오류 처리', () => {
     await expect(requestJson('/catalog', isCatalog)).rejects.toMatchObject({ code: 'TIMEOUT' })
   })
 
+  it('일반 응답의 JSON 형식 오류에서도 헤더의 요청 ID를 보존한다', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('{invalid json', { headers: { 'X-Request-Id': 'raw-invalid-id' } }),
+    )
+    await expect(requestJson('/catalog', isCatalog)).rejects.toMatchObject({
+      status: 200,
+      code: 'INVALID_RESPONSE',
+      requestId: 'raw-invalid-id',
+    })
+  })
+
   it('호출자가 취소한 요청은 네트워크 오류로 바꾸지 않는다', async () => {
     const controller = new AbortController()
     controller.abort()

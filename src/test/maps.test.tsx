@@ -100,6 +100,36 @@ const administrative: KakaoRegionResult = {
 }
 
 describe('지도 위치의 행정구역 조회', () => {
+  it('지역 선택 기준이 바뀌면 이전 지도 조회 카드와 늦은 응답을 지운다', async () => {
+    let resolve!: (region: KakaoRegionResult) => void
+    lookup.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done
+        }),
+    )
+    const user = userEvent.setup()
+    const view = render(
+      <AreaMap
+        {...props}
+        lookupRevision={0}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: '중심 위치 조회' }))
+    expect(lookup).toHaveBeenCalledTimes(1)
+    const signal = lookup.mock.calls[0][2] as AbortSignal
+
+    view.rerender(
+      <AreaMap
+        {...props}
+        lookupRevision={1}
+      />,
+    )
+    expect(signal.aborted).toBe(true)
+    await act(async () => resolve(administrative))
+    expect(screen.queryByRole('region', { name: '행정구역 조회' })).not.toBeInTheDocument()
+  })
+
   it('둘러보기 좌표를 이전 분석 데이터와 구분해 카카오지도에 전달한다', () => {
     const region = {
       code: '1117065000',
