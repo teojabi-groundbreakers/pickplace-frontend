@@ -1537,6 +1537,10 @@ td {
   padding: 20px;
 }
 
+.trend-panel > .no-data {
+  padding-block-start: 0;
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -2353,6 +2357,10 @@ td {
 
   .panel-header {
     padding: 17px 16px 14px;
+  }
+
+  .trend-panel > .no-data {
+    padding-inline: 16px;
   }
 
   .panel-header h2 {

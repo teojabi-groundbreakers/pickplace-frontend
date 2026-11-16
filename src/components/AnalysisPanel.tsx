@@ -9,7 +9,7 @@ import type {
 import type { AnalysisState } from '../lib/useAnalysis'
 import { downloadReport } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
-import { TrendChart } from './TrendChart'
+import { EmptyTrendPanel, TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
 import { AiDiagnosis } from './AiDiagnosis'
 import { Factors, Summary, Competition } from './Insights'
@@ -195,13 +195,10 @@ export function AnalysisPanel({
               {result.trends.length > 0 ? (
                 <TrendChart trends={result.trends} />
               ) : (
-                <section
-                  className="panel trend-panel"
-                  aria-label="상권 추이"
-                >
-                  <h2>상권 데이터 한눈에</h2>
-                  <p className="no-data">제공된 추이 데이터가 없습니다.</p>
-                </section>
+                <EmptyTrendPanel
+                  label="상권 추이"
+                  message="제공된 추이 데이터가 없습니다."
+                />
               )}
               <Summary analysis={result} />
             </div>
