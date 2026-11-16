@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { ResearchForecast } from '../components/ResearchForecast'
 import { createDemoAnalysis, defaultRequest } from '../data/demo'
@@ -72,16 +73,46 @@ describe('research forecast contract', () => {
     expect(isAnalysis({ ...demo, researchForecast: nonfinite })).toBe(false)
   })
 
-  it('shows percentage, missing reason, and research limitations', () => {
-    render(<ResearchForecast data={forecast()} />)
-    expect(screen.getByText(/전년 동기 대비 \+5\.0%/)).toBeInTheDocument()
-    expect(screen.getByText(/추정 불가: 과거 이력이 부족합니다/)).toBeInTheDocument()
-    expect(screen.getByText(/지역별 학습 범위는 검증되지 않았습니다/)).toBeInTheDocument()
+  it('shows forecasts first and keeps source, warnings and backtest results in a disclosure', async () => {
+    const data = forecast()
+    data.predictions[0].warnings.push('검토 중인 항목이 있습니다.')
+    const user = userEvent.setup()
+    render(<ResearchForecast data={data} />)
+    expect(screen.getByText('입력 기준')).toBeVisible()
+    expect(screen.getByText('2026Q2')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '2026Q3' })).toBeVisible()
+    expect(screen.getByText('+5.0%')).toBeVisible()
+    expect(screen.getByText('전년 동기 대비')).toBeVisible()
+    expect(screen.getByRole('heading', { name: '2026Q4' })).toBeVisible()
+    expect(screen.getByText('추정 불가')).toBeVisible()
+    expect(screen.getByText('과거 이력이 부족합니다.')).toBeVisible()
+    expect(screen.getByText(/실제 예측 성능은 검증되지 않았습니다/)).toBeVisible()
+    expect(screen.getByText('62.56%p')).not.toBeVisible()
+
+    await user.click(screen.getByText('출처와 검증 상세'))
+
+    expect(screen.getByText(/행정동 코드 대응과 지역별 모델 적용 범위/)).toBeVisible()
     expect(
       screen.getByText(/요청에 사용된 입력값의 출처와 진위는 검증되지 않았습니다/),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/데이터 확보일: 2026-11-04/)).toBeInTheDocument()
-    expect(screen.getByText(/평균 오차 62\.56%p/)).toBeInTheDocument()
-    expect(screen.getByText(/향후 정확도나 예측구간은 아닙니다/)).toBeInTheDocument()
+    ).toBeVisible()
+    expect(screen.getByText('2026-11-04')).toHaveAttribute('datetime', '2026-11-04')
+    expect(screen.getByText('평균 절대오차')).toBeVisible()
+    expect(screen.getByText('62.56%p')).toBeVisible()
+    expect(screen.getByText('검토 중인 항목이 있습니다.')).toBeVisible()
+  })
+
+  it('shows a negative estimate and an available zero with their own target quarters', () => {
+    const data = forecast()
+    data.predictions[0].estimatedYoYGrowth = -0.092136
+    data.predictions[1] = {
+      ...data.predictions[1],
+      estimatedYoYGrowth: 0,
+      reason: null,
+      status: 'available',
+    }
+    render(<ResearchForecast data={data} />)
+    expect(screen.getByText('-9.2%')).toBeVisible()
+    expect(screen.getByText('0.0%')).toBeVisible()
+    expect(screen.queryByText('추정 불가')).toBeNull()
   })
 })
