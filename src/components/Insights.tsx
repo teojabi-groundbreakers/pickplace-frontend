@@ -54,9 +54,11 @@ export function Summary({ analysis }: { analysis: Analysis }) {
       <div className="panel-header">
         <h2>
           <Sparkles size={17} />
-          AI 상권 인사이트
+          {analysis.ai ? '분석 상태 안내' : 'AI 상권 인사이트'}
         </h2>
-        <Badge tone="neutral">{analysis.source === 'demo' ? '예시 진단' : '분석 요약'}</Badge>
+        <Badge tone="neutral">
+          {analysis.source === 'demo' ? '예시 진단' : analysis.ai ? '부분 결과' : '분석 요약'}
+        </Badge>
       </div>
       <p className="summary-text">{analysis.summary}</p>
       <div className="recommendations">

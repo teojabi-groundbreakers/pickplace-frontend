@@ -1,0 +1,181 @@
+.ai-diagnosis {
+  margin-bottom: var(--space-4);
+}
+
+.ai-diagnosis .panel-header {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+
+.ai-diagnosis .badge {
+  font-size: 11px;
+}
+
+.ai-diagnosis .badge-green,
+.ai-diagnosis .badge-neutral {
+  background: var(--analysis-muted-surface, #f5f6f7);
+}
+
+.ai-diagnosis .badge-green {
+  color: var(--color-brand);
+}
+
+.ai-diagnosis .badge-neutral {
+  color: #4b5563;
+}
+
+.ai-diagnosis .badge-orange {
+  color: #775025;
+}
+
+.ai-diagnosis-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0 20px var(--space-4);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.ai-as-of,
+.ai-indicator-period,
+.ai-indicator-comparison,
+.ai-indicator small,
+.ai-location-note {
+  color: #4b5563;
+  font-size: 11px;
+}
+
+.ai-reference-scope {
+  color: #4b5563;
+}
+
+.ai-data-notice,
+.ai-request-notice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--analysis-muted-surface, #f5f6f7);
+  color: #4b5563;
+}
+
+.ai-request-notice {
+  background: #f7f0e3;
+  color: #775025;
+}
+
+.ai-indicator-list {
+  border-block: 1px solid var(--analysis-border, #e2e5e9);
+}
+
+.ai-indicator {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+}
+
+.ai-indicator + .ai-indicator {
+  border-top: 1px solid var(--analysis-border, #e2e5e9);
+}
+
+.ai-indicator-details {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.ai-indicator-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.ai-indicator-heading h3,
+.ai-statistics h3 {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ai-indicator-heading h3 {
+  color: var(--color-brand-dark);
+}
+
+.ai-indicator-research {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ai-statistics dl {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.ai-statistics dl > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ai-statistics dd {
+  margin: 0;
+}
+
+.regional-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.regional-summary-metrics > div {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+}
+
+.regional-summary-metrics dd {
+  margin: 0;
+}
+
+.regional-summary-value {
+  color: var(--color-brand-dark);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.regional-summary-metrics time {
+  color: #4b5563;
+  font-size: 11px;
+}
+
+.ai-indicator-value {
+  color: var(--color-brand-dark);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.ai-indicator-unavailable {
+  color: #775025;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.ai-diagnosis-body.ai-summary-notes {
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: 36px;
+  color: #4b5563;
+}
+
+@media (max-width: 760px) {
+  .ai-diagnosis-body {
+    padding-inline: var(--space-4);
+  }
+}

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { config } from '../lib/config'
-import { createDemoAnalysis, defaultRequest } from '../data/demo'
+import { aiTestEnvelope } from './aiFixtures'
 import type { AnalysisRequest } from '../types/analysis'
 import type { MapRendererProps } from '../types/map'
 
@@ -36,17 +36,7 @@ const location = {
 }
 
 function response(request: AnalysisRequest) {
-  const example = createDemoAnalysis(defaultRequest)
-  return new Response(
-    JSON.stringify({
-      ...example,
-      request,
-      regionName: location.address_name,
-      industryName: '커피·음료',
-      source: 'api',
-      map: { center: [37.53213, 126.99267], boundary: [], places: [] },
-    }),
-  )
+  return new Response(JSON.stringify(aiTestEnvelope(request)))
 }
 
 beforeEach(() => {
@@ -106,7 +96,7 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
     await screen.findByRole('heading', { name: /이태원1동/ })
     const request = { regionCode: location.code, industryCode: 'CS100010' }
     expect(fetchMock).toHaveBeenLastCalledWith(
-      '/api/analyses',
+      '/api/ai/analyses',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(request),
@@ -122,7 +112,7 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
     await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
     await screen.findByRole('heading', { name: /이태원1동/ })
     expect(fetchMock).toHaveBeenLastCalledWith(
-      '/api/analyses',
+      '/api/ai/analyses',
       expect.objectContaining({
         body: JSON.stringify(request),
       }),
@@ -150,7 +140,13 @@ describe('조회 위치의 백엔드 분석과 둘러보기', () => {
   it('지역 지원·데이터 부족 여부를 서버 응답으로 처리하며 오류 재시도는 같은 코드로 요청한다', async () => {
     const user = await query()
     fetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ code: 'INSUFFICIENT_DATA' }), { status: 422 }),
+      new Response(
+        JSON.stringify({
+          error: { code: 'INSUFFICIENT_DATA', message: '자료 없음', details: [] },
+          meta: { requestId: 'missing-data' },
+        }),
+        { status: 422 },
+      ),
     )
     await user.selectOptions(screen.getByLabelText('분석할 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '이 지역 분석' }))
