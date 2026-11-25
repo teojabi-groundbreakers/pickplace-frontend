@@ -1,16 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
-import { getLocalResearchForecast, type LocalResearchResult } from '../lib/localResearchForecast'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { getLocalResearchForecast, type LocalResearchState } from '../lib/localResearchForecast'
 import type { AnalysisRequest } from '../types/analysis'
 import { ResearchForecast } from './ResearchForecast'
 import { Badge, Button } from './ui'
 
-type ResearchState = { status: 'idle' | 'loading' | 'error' } | LocalResearchResult
-
-export function LocalResearchForecast({ selection }: { selection: AnalysisRequest }) {
-  const [state, setState] = useState<ResearchState>({ status: 'idle' })
+export function LocalResearchForecast({
+  selection,
+  onResearchChange,
+}: {
+  selection: AnalysisRequest
+  onResearchChange?: (state: LocalResearchState) => void
+}) {
+  const [state, setState] = useState<LocalResearchState>({ status: 'idle' })
   const request = useRef<AbortController | null>(null)
 
   useEffect(() => () => request.current?.abort(), [])
+  useLayoutEffect(() => {
+    onResearchChange?.(state)
+  }, [onResearchChange, state])
 
   async function loadForecast() {
     if (request.current) return

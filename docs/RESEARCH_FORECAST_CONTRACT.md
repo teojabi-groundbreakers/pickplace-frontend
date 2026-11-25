@@ -52,7 +52,7 @@ PickPlace 루트의 `test-integration.sh`가 실행한 로컬 FE는 서울 행�
 - 업종 적합도 카드에는 FastAPI 참조표에서 반환한 점포당 주민 수, 1㎢당 점포 수와 자료 기준일을 표시한다. 비교표는 같은 기준일의 주민등록인구와 행정동 경계, 같은 분기의 서울 점포 수를 사용한다. 지수 점수는 별도의 승인 입력으로 계산한다.
 - 연구용 추정과 비교 지표는 서울 원천 세부 업종 기준을 표시한다. 대응이나 이력이 없으면 일반 분석과 기본 통계는 계속 볼 수 있다. 지역·업종이 바뀌면 진행 중인 로컬 요청을 취소한다.
 
-로컬 조회 경로는 `POST /__ai-model-api/research/forecast`와 `GET /__ai-model-api/fit-reference`이며, 두 요청은 현재 분석의 `regionCode`·`industryCode`를 쿼리로 보낸다. 일반 분석 v2의 `analysisScope`는 지표 영역과 텍스트 보고서에 서울 원천 업종 기준을 표시한다.
+로컬 조회 경로는 `POST /__ai-model-api/research/forecast`와 `GET /__ai-model-api/fit-reference`이며, 두 요청은 현재 분석의 `regionCode`·`industryCode`를 쿼리로 보낸다. 일반 분석 v2의 `analysisScope`는 지표 영역과 PDF 보고서에 서울 원천 업종 기준을 표시한다. 결과 패널에서 내려받은 PDF에는 현재 조회된 로컬 연구용 추정과 적합도 참고 지표를 담는다. 저장 목록의 PDF는 브라우저에 저장된 분석만 사용한다.
 
 ### 일반 분석과 적합도 비교의 미제공 사유
 

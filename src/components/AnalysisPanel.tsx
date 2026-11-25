@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { ArrowDownToLine, Bookmark, ChevronRight, MapPin, PanelRightOpen, X } from 'lucide-react'
+import { Bookmark, ChevronRight, MapPin, PanelRightOpen, X } from 'lucide-react'
 import type {
   Analysis,
   AnalysisDisplayContext,
@@ -9,12 +9,13 @@ import type {
 import type { AnalysisState } from '../lib/useAnalysis'
 import { config } from '../lib/config'
 import { supportsLocalResearch } from '../lib/localResearchForecast'
-import { downloadReport } from '../lib/reports'
+import type { ReportReferences } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
 import { EmptyTrendPanel, TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
 import { LocalResearchForecast } from './LocalResearchForecast'
 import { AiDiagnosis, RegionalSummaryCard } from './AiDiagnosis'
+import { ReportDownloadButton } from './ReportDownloadButton'
 import { Factors, Summary, Competition } from './Insights'
 import { Badge, Button, EmptyState } from './ui'
 
@@ -41,6 +42,7 @@ export function AnalysisPanel({
 }) {
   const panelToggle = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLElement>(null)
+  const reportReferences = useRef<{ analysis: Analysis; references: ReportReferences } | null>(null)
   const panelOpen = state.status !== 'idle' && dismissedState !== state
   const result = state.status === 'success' ? state.result : null
   const showLocalResearch =
@@ -48,6 +50,24 @@ export function AnalysisPanel({
     resultMatchesSelection &&
     result?.source === 'api' &&
     supportsLocalResearch(result.request)
+
+  function recordReportReference<Key extends keyof ReportReferences>(
+    kind: Key,
+    value: ReportReferences[Key],
+  ) {
+    if (!result || !showLocalResearch) return
+    if (reportReferences.current?.analysis !== result) {
+      reportReferences.current = { analysis: result, references: {} }
+    }
+    reportReferences.current.references[kind] = value
+  }
+
+  function displayedReportReferences(): ReportReferences | undefined {
+    const snapshot = reportReferences.current
+    return showLocalResearch && snapshot?.analysis === result
+      ? { ...snapshot.references }
+      : undefined
+  }
 
   useLayoutEffect(() => {
     const main = panelRef.current?.closest('main')
@@ -170,13 +190,11 @@ export function AnalysisPanel({
                   />
                   {saved.some((item) => item.id === result.id) ? '저장됨' : '분석 저장'}
                 </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => downloadReport(result)}
-                >
-                  <ArrowDownToLine size={15} />
-                  <span>보고서 다운로드</span>
-                </Button>
+                <ReportDownloadButton
+                  key={result.id}
+                  result={result}
+                  getReferences={displayedReportReferences}
+                />
               </div>
             </div>
             {!resultMatchesSelection && (
@@ -203,6 +221,8 @@ export function AnalysisPanel({
                 data={result.ai}
                 hasRegionalSummary={Boolean(result.regionalSummary)}
                 localReferenceSelection={showLocalResearch ? result.request : undefined}
+                onResearchChange={(state) => recordReportReference('research', state)}
+                onFitReferenceChange={(state) => recordReportReference('fit', state)}
               />
             )}
             {result.researchForecast ? (
@@ -213,6 +233,7 @@ export function AnalysisPanel({
                 <LocalResearchForecast
                   key={`${result.request.regionCode}:${result.request.industryCode}`}
                   selection={result.request}
+                  onResearchChange={(state) => recordReportReference('research', state)}
                 />
               )
             )}

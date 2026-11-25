@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
 import type {
   AiAnalysisDisplay,
   AiPeriodGrowth,
@@ -9,29 +9,31 @@ import type {
 import { aiDisplayMetrics, aiReasonText, aiWarningText } from '../lib/aiAnalysis'
 import {
   aiBasePeriodText,
+  aiDraftScoreNote,
+  aiFitDirection,
   aiGrowthPeriodsText,
+  aiGrowthValueText,
+  aiLocationNote,
+  aiReferenceScopeNote,
   aiReferenceScopeText,
+  aiRequestNoticeText,
+  aiRequestStatusText,
+  aiRiskDirection,
   aiStatisticsRows,
+  fitReferenceBasisNote,
   regionalSummaryRows,
+  researchForecastNote,
+  researchGrowthFormat,
 } from '../lib/aiPresentation'
-import { getLocalResearchForecast, type LocalResearchResult } from '../lib/localResearchForecast'
-import { useFitReference } from '../lib/useFitReference'
+import {
+  getLocalResearchForecast,
+  type LocalResearchResult,
+  type LocalResearchState,
+} from '../lib/localResearchForecast'
+import { useFitReference, type FitReferenceState } from '../lib/useFitReference'
 import { FitReferenceBenchmark, FitReferenceIndicators } from './FitComparison'
 import { Badge } from './ui'
 import './ai-diagnosis.css'
-
-const stateLabels = {
-  SKIPPED: '일반 AI 요청 보류',
-  FAILED: 'AI 응답 실패',
-  AVAILABLE: 'AI 응답 확인',
-}
-
-const growthFormat = new Intl.NumberFormat('ko-KR', {
-  style: 'percent',
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-  signDisplay: 'exceptZero',
-})
 
 function IndicatorHeading({ title, value }: { title: string; value: string | null }) {
   return (
@@ -49,9 +51,11 @@ function IndicatorHeading({ title, value }: { title: string; value: string | nul
 function GrowthIndicator({
   indicator,
   selection,
+  onResearchChange,
 }: {
   indicator: AiPeriodGrowth
   selection?: AnalysisRequest
+  onResearchChange?: (state: LocalResearchState) => void
 }) {
   const [lookup, setLookup] = useState<LocalResearchResult | { status: 'error' } | null>(null)
   const regionCode = selection?.regionCode
@@ -79,10 +83,21 @@ function GrowthIndicator({
   const hasResearch = research !== null && estimate !== undefined && estimatedGrowth != null
   const growthPeriods = aiGrowthPeriodsText(indicator)
   const value = hasResearch
-    ? growthFormat.format(estimatedGrowth)
+    ? researchGrowthFormat.format(estimatedGrowth)
     : indicator.status === 'available'
-      ? `${indicator.value >= 0 ? '+' : ''}${(indicator.value * 100).toFixed(1)}%`
+      ? aiGrowthValueText(indicator.value)
       : null
+
+  useLayoutEffect(() => {
+    if (!onResearchChange) return
+    onResearchChange(
+      !useResearch
+        ? { status: 'idle' }
+        : hasResearch
+          ? research
+          : { status: lookup?.status === 'error' ? 'error' : lookup ? 'unavailable' : 'loading' },
+    )
+  }, [hasResearch, lookup, onResearchChange, research, useResearch])
 
   return (
     <article className="ai-indicator">
@@ -99,9 +114,7 @@ function GrowthIndicator({
             </p>
             <p className="ai-indicator-comparison">{estimate.targetPeriod} 추정 · 전년 동기 대비</p>
             <p className="ai-indicator-comparison">{research.scopeLabel}</p>
-            <small>
-              서울시 추정매출을 사용한 연구 결과이며 실제 예측 성능은 검증되지 않았습니다.
-            </small>
+            <small>{researchForecastNote}</small>
           </>
         ) : (
           <>
@@ -158,9 +171,7 @@ function DraftIndicator({
         ) : (
           <p className="ai-indicator-comparison">{aiReasonText(indicator.reason)}</p>
         )}
-        {(indicator.status === 'available' || !comparison) && (
-          <small>규칙 기반 초안 지수 · 성공률이나 폐업 확률이 아닙니다.</small>
-        )}
+        {(indicator.status === 'available' || !comparison) && <small>{aiDraftScoreNote}</small>}
         {comparison}
       </div>
     </article>
@@ -199,10 +210,14 @@ export function AiDiagnosis({
   data,
   hasRegionalSummary = false,
   localReferenceSelection,
+  onResearchChange,
+  onFitReferenceChange,
 }: {
   data: AiAnalysisDisplay
   hasRegionalSummary?: boolean
   localReferenceSelection?: AnalysisRequest
+  onResearchChange?: (state: LocalResearchState) => void
+  onFitReferenceChange?: (state: FitReferenceState) => void
 }) {
   const { ai, statistics } = data
   const result = aiDisplayMetrics(data)
@@ -213,25 +228,18 @@ export function AiDiagnosis({
       : undefined
   const referenceScope = aiReferenceScopeText(data)
   const fitReference = useFitReference(result ? localSelection : undefined)
-  const statisticRows = aiStatisticsRows(statistics).filter(
-    ({ key }) =>
-      !hasRegionalSummary || (key !== 'registeredPopulation' && key !== 'listedStoreCount'),
-  )
+  useLayoutEffect(() => {
+    onFitReferenceChange?.(fitReference)
+  }, [fitReference, onFitReferenceChange])
+  const statisticRows = aiStatisticsRows(statistics, hasRegionalSummary)
   const summary = [
     referenceScope && (hasRegionalSummary || statisticRows.length > 0)
-      ? '기본 현황은 선택 업종의 수록 자료를 사용합니다. 상세 지표는 카드에 표시된 서울 원천 업종을 기준으로 해석해 주세요.'
+      ? aiReferenceScopeNote
       : null,
-    fitReference.status === 'available'
-      ? '적합도 비교에는 기준 시점이 맞는 주민등록인구, 점포 수, 행정동 면적을 사용합니다.'
-      : null,
+    fitReference.status === 'available' ? fitReferenceBasisNote : null,
     ...(result?.warnings.map(aiWarningText) ?? []),
   ].filter((note): note is string => note !== null)
-  const requestStatus =
-    ai.state === 'SKIPPED' && ai.reason === 'region_not_supported'
-      ? '서울 외 일반 AI 미지원'
-      : result && ai.state === 'FAILED'
-        ? 'AI 요청 실패 기록'
-        : stateLabels[ai.state]
+  const requestStatus = aiRequestStatusText(ai, Boolean(result))
 
   return (
     <>
@@ -270,11 +278,7 @@ export function AiDiagnosis({
               className="ai-request-notice"
               role="status"
             >
-              {!result &&
-                (ai.state === 'SKIPPED'
-                  ? '일반 AI 요청을 보내지 않았습니다. '
-                  : 'AI 결과를 받지 못했습니다. ')}
-              {aiReasonText(ai.reason)}
+              {aiRequestNoticeText(ai, Boolean(result))}
             </p>
           )}
           {result && (
@@ -285,25 +289,23 @@ export function AiDiagnosis({
                   key={`${data.requestId}:${localSelection?.regionCode ?? ''}:${localSelection?.industryCode ?? ''}`}
                   indicator={result.growth}
                   selection={localSelection}
+                  onResearchChange={onResearchChange}
                 />
                 <DraftIndicator
                   title="위험 지수"
                   indicator={result.risk}
-                  direction="높을수록 위험 신호가 큽니다."
+                  direction={aiRiskDirection}
                 />
                 <DraftIndicator
                   title="업종 적합도 지수"
                   indicator={result.fit}
-                  direction="높을수록 초안 기준에서 긍정적입니다."
+                  direction={aiFitDirection}
                   comparison={localSelection && <FitReferenceIndicators state={fitReference} />}
                 />
               </div>
             </>
           )}
-          <p className="ai-location-note">
-            지도 중심은 사용자가 선택한 카카오 지도 위치이며, 공식 행정동 대표점이나 경계를 뜻하지
-            않습니다.
-          </p>
+          <p className="ai-location-note">{aiLocationNote}</p>
         </div>
       </section>
       {summary.length > 0 && (

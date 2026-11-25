@@ -14,6 +14,8 @@ export type LocalResearchResult =
   | { status: 'unavailable' }
   | { status: 'available'; forecast: ResearchForecast; scopeLabel: string }
 
+export type LocalResearchState = LocalResearchResult | { status: 'idle' | 'loading' | 'error' }
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

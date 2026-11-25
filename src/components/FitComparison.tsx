@@ -1,24 +1,21 @@
-import { fitComparisonError, type FitMetric, type FitReferenceState } from '../lib/useFitReference'
+import {
+  fitMetricPercentileText,
+  fitMetricValueText,
+  fitNumberFormat,
+  fitReferenceNotice,
+} from '../lib/aiPresentation'
+import type { FitReferenceState } from '../lib/useFitReference'
 import './fit-comparison.css'
 
-const formatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 })
-
-function metricValue(metric: FitMetric | null, unit: string) {
-  return metric ? `${formatter.format(metric.value)}${unit}` : '자료 없음'
-}
-
 export function FitReferenceIndicators({ state }: { state: FitReferenceState }) {
-  if (state.status === 'idle') return null
-  if (state.status === 'loading') return <small role="status">비교 지표 조회 중…</small>
-  if (state.status === 'error') return <small role="status">{fitComparisonError}</small>
-  if (state.status === 'unavailable' && state.reason === 'boundary_unverified') {
-    return (
-      <small>
-        적합도 경계 검증 미달. 서울시와 행안부 자료의 행정동 경계가 기준만큼 겹치지 않습니다.
+  if (state.status !== 'available') {
+    const notice = fitReferenceNotice(state)
+    return notice ? (
+      <small role={state.status === 'loading' || state.status === 'error' ? 'status' : undefined}>
+        {notice}
       </small>
-    )
+    ) : null
   }
-  if (state.status !== 'available') return <small>이 지역에 제공할 비교 지표가 없습니다.</small>
 
   const { referenceDate, sourceIndustryName, residentsPerStore, storesPerKm2 } = state.reference
   return (
@@ -30,19 +27,15 @@ export function FitReferenceIndicators({ state }: { state: FitReferenceState }) 
       <dl>
         <div>
           <dt>점포당 주민 수</dt>
-          <dd>{metricValue(residentsPerStore, '명')}</dd>
+          <dd>{fitMetricValueText(residentsPerStore, '명')}</dd>
         </div>
         <div>
           <dt>점포 밀집도</dt>
-          <dd>{metricValue(storesPerKm2, '곳/㎢')}</dd>
+          <dd>{fitMetricValueText(storesPerKm2, '곳/㎢')}</dd>
         </div>
       </dl>
     </div>
   )
-}
-
-function metricPercentile(metric: FitMetric | null) {
-  return metric?.percentile != null ? formatter.format(metric.percentile) : '자료 없음'
 }
 
 export function FitReferenceBenchmark({ state }: { state: FitReferenceState }) {
@@ -57,7 +50,7 @@ export function FitReferenceBenchmark({ state }: { state: FitReferenceState }) {
     >
       <h2>서울 동일 업종 비교</h2>
       <p className="ai-fit-benchmark-meta">
-        {sourceIndustryName} · 서울 검증 표본 {formatter.format(cohortSize)}개 행정동 ·{' '}
+        {sourceIndustryName} · 서울 검증 표본 {fitNumberFormat.format(cohortSize)}개 행정동 ·{' '}
         <time dateTime={referenceDate}>{referenceDate}</time> 기준
       </p>
       <table aria-label="항목별 백분위">
@@ -71,13 +64,13 @@ export function FitReferenceBenchmark({ state }: { state: FitReferenceState }) {
         <tbody>
           <tr>
             <th scope="row">점포당 주민 수</th>
-            <td>{metricValue(residentsPerStore, '명')}</td>
-            <td>{metricPercentile(residentsPerStore)}</td>
+            <td>{fitMetricValueText(residentsPerStore, '명')}</td>
+            <td>{fitMetricPercentileText(residentsPerStore)}</td>
           </tr>
           <tr>
             <th scope="row">점포 밀집도</th>
-            <td>{metricValue(storesPerKm2, '곳/㎢')}</td>
-            <td>{metricPercentile(storesPerKm2)}</td>
+            <td>{fitMetricValueText(storesPerKm2, '곳/㎢')}</td>
+            <td>{fitMetricPercentileText(storesPerKm2)}</td>
           </tr>
         </tbody>
       </table>

@@ -5,6 +5,7 @@ import { AiDiagnosis } from '../components/AiDiagnosis'
 import { isAiAnalysisResponse, toAnalysis } from '../lib/aiAnalysis'
 import { getLocalResearchForecast, type LocalResearchResult } from '../lib/localResearchForecast'
 import { persistReports, readReports } from '../lib/reports'
+import { buildReportPdfModel } from '../lib/reportPdfModel'
 import { Saved } from '../pages/Saved'
 import { aiPeriodTestEnvelope, aiTestContext, aiTestEnvelope, aiTestRequest } from './aiFixtures'
 
@@ -202,16 +203,37 @@ describe('AI 부분 결과 안내와 보고서', () => {
     expect(screen.queryByText('42.0 / 100')).not.toBeInTheDocument()
   })
 
-  it('기존 단일 분기 분석 저장본을 읽는다', () => {
+  it('기존 v1 저장본을 다시 읽고 지표별 기준 분기와 주의사항을 보고서에 남긴다', () => {
     const envelope = aiTestEnvelope()
     const legacy = toAnalysis(aiTestRequest, envelope.data, envelope.meta.requestId, aiTestContext)
     localStorage.setItem('pickplace.reports.v1', JSON.stringify([legacy]))
     const [restored] = readReports()
     expect(restored).toEqual(legacy)
     expect(restored.period).toBe('2026Q3')
+
+    const report = buildReportPdfModel(restored)
+    const diagnosis = report.sections.find((section) => section.kind === 'indicators')
+    expect(diagnosis?.metrics[0]).toMatchObject({
+      label: '매출 성장률 추정',
+      value: null,
+      details: expect.arrayContaining([
+        { text: '2026Q3 기준' },
+        { text: '예측 대상 2026Q4 · 비교 2025Q4' },
+        { text: '사용 가능한 예측 모델 파일이 없습니다.' },
+      ]),
+    })
+    expect(report.sections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'text',
+          title: '분석 상태 안내',
+          details: expect.arrayContaining([{ text: '위험·적합도 지수는 검증 중인 초안입니다.' }]),
+        }),
+      ]),
+    )
   })
 
-  it('부분 대응의 실제 분석 범위를 지표 카드에 표시하고 저장한다', () => {
+  it('부분 대응의 실제 분석 범위를 지표 카드와 저장된 보고서에 표시한다', () => {
     const { data, meta } = aiPeriodTestEnvelope()
     data.ai.analysisScope = {
       sourceRegionCode: '11110515',
@@ -244,7 +266,10 @@ describe('AI 부분 결과 안내와 보고서', () => {
 
     persistReports([toAnalysis(aiTestRequest, data, meta.requestId, aiTestContext)])
     const [restored] = readReports()
-    expect(restored.ai?.ai).toMatchObject({ analysisScope: data.ai.analysisScope })
+    const diagnosis = buildReportPdfModel(restored).sections.find(
+      (section) => section.kind === 'indicators',
+    )
+    expect(diagnosis?.details).toEqual(expect.arrayContaining([{ text: scopeText }]))
 
     data.ai.analysisScope.referenceOnly = false
     expect(isAiAnalysisResponse(data)).toBe(false)
@@ -271,6 +296,39 @@ describe('AI 부분 결과 안내와 보고서', () => {
     expect(screen.getByText('상주인구')).toBeInTheDocument()
     expect(screen.getByText(/100명/)).toBeInTheDocument()
     expect(screen.getByText(/자료의 사용 승인을 확인하지 못했습니다/)).toBeInTheDocument()
+
+    const report = buildReportPdfModel(
+      toAnalysis(aiTestRequest, data, meta.requestId, aiTestContext),
+    )
+    const diagnosis = report.sections.find((section) => section.kind === 'indicators')
+    expect(diagnosis).toMatchObject({
+      status: { label: 'AI 요청 실패 기록' },
+      metrics: [
+        {
+          label: '매출 성장률 추정',
+          value: null,
+          details: expect.arrayContaining([
+            { text: '2026Q2 기준' },
+            { text: '예측 대상 2026Q3 · 비교 2025Q3' },
+          ]),
+        },
+        {
+          label: '위험 지수',
+          value: '42.0 / 100',
+          details: expect.arrayContaining([{ text: '2026Q2 기준' }]),
+        },
+        {
+          label: '업종 적합도 지수',
+          value: '65.0 / 100',
+          details: expect.arrayContaining([{ text: '2026Q3 기준' }]),
+        },
+      ],
+    })
+    expect(diagnosis?.details).toEqual(
+      expect.arrayContaining([
+        { text: expect.stringContaining('자료의 사용 승인을 확인하지 못했습니다.') },
+      ]),
+    )
   })
 
   it('적합도만 제공되는 경우 0점과 기준 미확정 지표를 구분하고 저장 후 다시 연다', () => {
