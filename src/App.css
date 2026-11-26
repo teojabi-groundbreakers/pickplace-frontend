@@ -888,6 +888,15 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.research-forecast-scope {
+  color: var(--color-brand-dark);
+  font-weight: 650;
+}
+
+.research-forecast-action {
+  justify-self: start;
+}
+
 .research-forecast-flow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.6fr);

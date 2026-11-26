@@ -1,6 +1,7 @@
 import type {
   AiAnalysisDisplay,
   AiAnalysisResponse,
+  AiAnalysisScope,
   AiIndicator,
   AiModelResult,
   AiPeriodMetric,
@@ -145,6 +146,19 @@ function isPeriodMetric(value: unknown, min: number, max: number): value is AiPe
   )
 }
 
+function isAiAnalysisScope(value: unknown): value is AiAnalysisScope {
+  return (
+    object(value) &&
+    typeof value.sourceRegionCode === 'string' &&
+    /^\d{8}$/.test(value.sourceRegionCode) &&
+    typeof value.sourceIndustryCode === 'string' &&
+    /^CS\d{6}$/.test(value.sourceIndustryCode) &&
+    text(value.sourceIndustryName) &&
+    ((value.industryMatch === 'EXACT' && value.referenceOnly === false) ||
+      (value.industryMatch === 'PARTIAL' && value.referenceOnly === true))
+  )
+}
+
 function quarterIndex(period: string): number {
   return Number(period.slice(0, 4)) * 4 + Number(period[5]) - 1
 }
@@ -198,6 +212,8 @@ export function isAiAnalysisResponse(value: unknown): value is AiAnalysisRespons
       !('basePeriod' in value) &&
       !('result' in ai) &&
       (ai.state === 'AVAILABLE' ? ai.reason === null : text(ai.reason)) &&
+      (ai.analysisScope == null ||
+        (ai.state === 'AVAILABLE' && isAiAnalysisScope(ai.analysisScope))) &&
       object(ai.metrics) &&
       isPeriodGrowth(ai.metrics.growth, value.asOf) &&
       isPeriodMetric(ai.metrics.risk, 0, 100) &&
@@ -275,7 +291,9 @@ export function isAnalysisDisplayContext(value: unknown): value is AnalysisDispl
 }
 
 const reasonLabels: Record<string, string> = {
-  mapping_unverified: '지역·업종 코드의 공식 대응을 확인하지 못했습니다.',
+  mapping_unverified: '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
+  region_not_supported: '일반 AI 분석은 현재 서울 지역만 지원합니다.',
+  insufficient_verified_data: '이 지표를 계산하는 데 필요한 검증된 자료가 부족합니다.',
   mapping_scope_mismatch: '요청 지역·업종과 자료의 범위가 일치하지 않습니다.',
   mapping_not_available: '분석 기준일에 유효한 코드 대응 자료가 없습니다.',
   mapping_period_unverified: '자료 기간에 적용할 코드 대응을 확인하지 못했습니다.',

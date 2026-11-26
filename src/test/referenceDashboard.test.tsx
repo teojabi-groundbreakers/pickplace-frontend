@@ -166,9 +166,11 @@ describe('실제 백엔드 기준정보 화면', () => {
       )
       expect(await screen.findByRole('heading', { name: 'AI 분석 상태' })).toBeInTheDocument()
       expect(screen.getByText('AI 응답 확인')).toBeInTheDocument()
-      expect(
-        screen.getByText('제공 불가: 사용 가능한 예측 모델 파일이 없습니다.'),
-      ).toBeInTheDocument()
+      const growthHeading = screen.getByRole('heading', { name: '매출 성장률 추정' })
+      expect(growthHeading.closest('header')).toHaveTextContent('제공 불가')
+      expect(screen.getByText('사용 가능한 예측 모델 파일이 없습니다.').closest('article')).toBe(
+        growthHeading.closest('article'),
+      )
       expect(screen.getByText('42.0 / 100')).toBeInTheDocument()
       expect(screen.queryByText('종합 상권 점수')).not.toBeInTheDocument()
       expect(screen.getByText(/정보 기준일 2026-11-13/)).toBeInTheDocument()
@@ -184,7 +186,6 @@ describe('실제 백엔드 기준정보 화면', () => {
         { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
       ]),
     )
-    const source = { referenceOn: '2026-09-30' }
     const publishedSummary = {
       data: {
         region: { regionCode: request.regionCode },
@@ -195,18 +196,18 @@ describe('실제 백엔드 기준정보 화면', () => {
             unit: 'PERSON',
             status: 'AVAILABLE',
             reasonCode: null,
-            source: { ...source, datasetCode: 'POPULATION_MONTH' },
+            source: { referenceOn: '2026-10-31', datasetCode: 'POPULATION_MONTH' },
           },
           listedStoreCount: {
             value: 80,
             unit: 'STORE',
             status: 'AVAILABLE',
             reasonCode: null,
-            source: { ...source, datasetCode: 'STORE_SNAPSHOT' },
+            source: { referenceOn: '2026-09-30', datasetCode: 'STORE_SNAPSHOT' },
           },
         },
       },
-      meta: { requestId: 'regional-summary', referenceMonth: '202609' },
+      meta: { requestId: 'regional-summary', referenceMonth: '202610' },
     }
     const fetchMock = vi
       .fn()
@@ -235,14 +236,15 @@ describe('실제 백엔드 기준정보 화면', () => {
           request.industryCode,
         )
       })
-      expect(await screen.findByText('AI 요청 보류')).toBeInTheDocument()
+      expect(await screen.findByText('일반 AI 요청 보류')).toBeInTheDocument()
       expect(screen.getByRole('status')).toHaveTextContent(
-        '지역·업종 코드의 공식 대응을 확인하지 못했습니다.',
+        '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
       )
       expect(screen.getByRole('heading', { name: '지역·업종 현황' })).toBeVisible()
       expect(screen.getByText('10,601명')).toBeVisible()
       expect(screen.getByText('80개')).toBeVisible()
-      expect(screen.getAllByText('2026년 9월 기준')).toHaveLength(2)
+      expect(screen.getByText('2026년 10월 기준')).toBeVisible()
+      expect(screen.getByText('2026년 9월 기준')).toBeVisible()
       expect(screen.queryByRole('article')).not.toBeInTheDocument()
       expect(
         screen.queryByRole('heading', {

@@ -1,10 +1,10 @@
-import { ArrowRight, ArrowDownToLine, Bookmark, Trash2 } from 'lucide-react'
+import { ArrowRight, Bookmark, Trash2 } from 'lucide-react'
 import { Link } from 'react-router'
 import type { AiAnalysisDisplay, Analysis } from '../types/analysis'
 import { Badge, Button } from '../components/ui'
 import { aiDisplayMetrics, aiReasonText } from '../lib/aiAnalysis'
 import { aiBasePeriodText } from '../lib/aiPresentation'
-import { downloadReport } from '../lib/reports'
+import { ReportDownloadButton } from '../components/ReportDownloadButton'
 
 function SavedAiPeriods({ data }: { data: AiAnalysisDisplay }) {
   const metrics = aiDisplayMetrics(data)
@@ -123,13 +123,10 @@ export function Saved({
                 >
                   분석 다시 보기 <ArrowRight size={15} />
                 </Button>
-                <button
-                  className="icon-button"
-                  aria-label={`${report.regionName} 보고서 다운로드`}
-                  onClick={() => downloadReport(report)}
-                >
-                  <ArrowDownToLine size={17} />
-                </button>
+                <ReportDownloadButton
+                  result={report}
+                  iconOnly
+                />
               </div>
             </article>
           ))}

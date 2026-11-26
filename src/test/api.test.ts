@@ -3,7 +3,7 @@ import { analyze, ApiError, getCatalog, requestJson } from '../lib/api'
 import { config } from '../lib/config'
 import { createDemoAnalysis, defaultRequest, demoCatalog } from '../data/demo'
 import { isAnalysis, isCatalog, validateSelection } from '../lib/validation'
-import { buildReportText } from '../lib/reports'
+import { buildReportPdfModel } from '../lib/reportPdfModel'
 import { aiPeriodTestEnvelope, aiTestContext, aiTestEnvelope, aiTestRequest } from './aiFixtures'
 
 const fetchMock = vi.fn()
@@ -61,8 +61,13 @@ describe('API 계약 및 오류 처리', () => {
       },
       meta: { requestId: 'regional-summary', referenceMonth: '202609' },
     }
+    const aiEnvelope = aiTestEnvelope(aiTestRequest, 'SKIPPED')
+    aiEnvelope.data.statistics.metrics = {
+      registeredPopulation: { value: 20001, status: 'AVAILABLE', reasonCode: null },
+      listedStoreCount: { value: 99, status: 'AVAILABLE', reasonCode: null },
+    }
     fetchMock
-      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(aiTestRequest, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiEnvelope)))
       .mockResolvedValueOnce(new Response(JSON.stringify(envelope)))
 
     const result = await analyze(aiTestRequest, undefined, 'success', aiTestContext)
@@ -75,11 +80,31 @@ describe('API 계약 및 오류 처리', () => {
     expect(result.ai?.ai.state).toBe('SKIPPED')
     expect(result.trends).toEqual([])
     expect(isAnalysis(JSON.parse(JSON.stringify(result)))).toBe(true)
-    const report = buildReportText(result)
-    expect(report).toContain('등록인구: 10,501명 (2026년 10월 기준 · 자료 기준일 2026-10-31)')
-    expect(report).toContain(
-      '선택 업종 수록 업소 수: 0개 (2026년 9월 기준 · 자료 기준일 2026-09-30)',
-    )
+    const report = buildReportPdfModel(result)
+    expect(report.sections[0]).toMatchObject({
+      kind: 'summary',
+      title: '지역·업종 현황',
+      metrics: [
+        {
+          label: '등록인구',
+          value: '10,501명',
+          details: expect.arrayContaining([
+            { text: '2026년 10월 기준' },
+            { text: expect.stringContaining('2026-10-31') },
+          ]),
+        },
+        {
+          label: '선택 업종 수록 업소 수',
+          value: '0개',
+          details: expect.arrayContaining([
+            { text: '2026년 9월 기준' },
+            { text: expect.stringContaining('2026-09-30') },
+          ]),
+        },
+      ],
+    })
+
+    expect(JSON.stringify(report.sections)).not.toMatch(/20,001명|99개/)
 
     envelope.data.region.regionCode = '1111053000'
     fetchMock

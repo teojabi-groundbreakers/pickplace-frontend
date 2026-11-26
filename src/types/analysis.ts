@@ -135,9 +135,21 @@ export interface AiPeriodMetrics {
   fit: AiPeriodMetric
 }
 
+export interface AiAnalysisScope {
+  sourceRegionCode: string
+  sourceIndustryCode: string
+  sourceIndustryName: string
+  industryMatch: 'EXACT' | 'PARTIAL'
+  referenceOnly: boolean
+}
+
 export interface AiAnalysisV2Response extends AiAnalysisResponseBase {
   schemaVersion: '2.0'
-  ai: AiAnalysisState & { metrics: AiPeriodMetrics; warnings: string[] }
+  ai: AiAnalysisState & {
+    metrics: AiPeriodMetrics
+    warnings: string[]
+    analysisScope?: AiAnalysisScope | null
+  }
 }
 
 export type AiAnalysisResponse = AiAnalysisV1Response | AiAnalysisV2Response

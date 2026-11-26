@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import type { ResearchForecast as ResearchForecastData } from '../types/analysis'
+import { researchGrowthFormat, researchReasonText } from '../lib/aiPresentation'
 import { Badge } from './ui'
 
 const historyWarning = '과거 최초 공개 시점과 데이터 버전은 검증되지 않았습니다.'
@@ -17,33 +18,19 @@ const warningLabels: Record<string, string> = {
   'H10-to-Seoul code mapping and geographic applicability are not verified.': regionWarning,
 }
 
-const reasonLabels: Record<string, string> = {
-  insufficient_history: '필요한 연속 분기 이력이 부족합니다.',
-  missing_sales: '필요한 매출 자료가 없습니다.',
-  invalid_sales_denominator: '성장률을 계산할 기준 매출이 없습니다.',
-  missing_or_nonpositive_comparison_sales: '전년 동기의 비교 매출이 없거나 0입니다.',
-  unsupported_or_insufficient_scope: '이 지역과 업종의 추정 결과를 제공할 수 없습니다.',
-  unsupported_region_or_industry_code: '지원하지 않는 지역 또는 업종 코드입니다.',
-  unsupported_source_or_region_code_system: '지원하지 않는 자료 출처 또는 지역 코드 체계입니다.',
-  unsupported_forecast_period: '지원하지 않는 기준 분기 또는 예측 분기입니다.',
-  as_of_before_model_snapshot: '모델의 데이터 확보일보다 이른 기준일은 사용할 수 없습니다.',
-  as_of_in_future: '아직 오지 않은 날짜를 기준일로 사용할 수 없습니다.',
-}
-
-const growthFormat = new Intl.NumberFormat('ko-KR', {
-  style: 'percent',
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-  signDisplay: 'exceptZero',
-})
-
 function estimateLabel(kind: ResearchForecastData['predictions'][number]['estimateKind']) {
   return kind === 'completed_quarter_unobserved_estimate'
     ? '종료된 분기의 추정'
     : '진행 중 또는 이후 분기의 추정'
 }
 
-export function ResearchForecast({ data }: { data?: ResearchForecastData | null }) {
+export function ResearchForecast({
+  data,
+  scopeLabel,
+}: {
+  data?: ResearchForecastData | null
+  scopeLabel?: string
+}) {
   if (!data) return null
 
   const validationNotes = [historyWarning]
@@ -60,6 +47,7 @@ export function ResearchForecast({ data }: { data?: ResearchForecastData | null 
         <Badge tone="neutral">연구용</Badge>
       </div>
       <div className="research-forecast-body">
+        {scopeLabel && <p className="research-forecast-scope">{scopeLabel}</p>}
         <div className="research-forecast-flow">
           <dl className="research-forecast-input">
             <dt>입력 기준</dt>
@@ -82,17 +70,13 @@ export function ResearchForecast({ data }: { data?: ResearchForecastData | null 
                 <p className="research-forecast-label">{estimateLabel(prediction.estimateKind)}</p>
                 {prediction.status === 'available' && prediction.estimatedYoYGrowth !== null ? (
                   <p className="research-forecast-growth">
-                    <strong>{growthFormat.format(prediction.estimatedYoYGrowth)}</strong>
+                    <strong>{researchGrowthFormat.format(prediction.estimatedYoYGrowth)}</strong>
                     <span>전년 동기 대비</span>
                   </p>
                 ) : (
                   <p className="research-forecast-unavailable">
                     <strong>추정 불가</strong>
-                    <span>
-                      {prediction.reason && Object.hasOwn(reasonLabels, prediction.reason)
-                        ? reasonLabels[prediction.reason]
-                        : prediction.reason}
-                    </span>
+                    <span>{researchReasonText(prediction.reason)}</span>
                   </p>
                 )}
               </li>

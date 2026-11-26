@@ -1,4 +1,10 @@
-import type { Analysis, AnalysisRequest, Catalog, RegionalSummary } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisRequest,
+  Catalog,
+  RegionalSummary,
+  ResearchForecast,
+} from '../types/analysis'
 import { isAiAnalysisDisplay, isMetricDecision } from './aiAnalysis'
 import { isAdministrativeRegionCode } from './regionCode'
 
@@ -73,12 +79,11 @@ export function isRegionalSummary(
   )
 }
 
-const researchForecast = (value: unknown) => {
-  if (value == null) return true
+export function isResearchForecast(value: unknown): value is ResearchForecast {
   if (
     !object(value) ||
     value.mode !== 'experimental_research_only' ||
-    !['model_inference', 'precomputed_snapshot'].includes(String(value.method)) ||
+    (value.method !== 'model_inference' && value.method !== 'precomputed_snapshot') ||
     !quarter(value.basePeriod) ||
     !calendarDate(value.dataAsOf) ||
     !str(value.modelVersion) ||
@@ -94,10 +99,8 @@ const researchForecast = (value: unknown) => {
         object(prediction) &&
         quarter(prediction.targetPeriod) &&
         String(prediction.targetPeriod) > String(value.basePeriod) &&
-        [
-          'completed_quarter_unobserved_estimate',
-          'in_progress_or_future_quarter_estimate',
-        ].includes(String(prediction.estimateKind)) &&
+        (prediction.estimateKind === 'completed_quarter_unobserved_estimate' ||
+          prediction.estimateKind === 'in_progress_or_future_quarter_estimate') &&
         list(prediction.warnings, str) &&
         (prediction.retrospectiveTest == null ||
           (object(prediction.retrospectiveTest) &&
@@ -230,7 +233,7 @@ export function isAnalysis(value: unknown): value is Analysis {
         regionCode: value.request.regionCode,
         industryCode: value.request.industryCode,
       })) &&
-    researchForecast(value.researchForecast)
+    (value.researchForecast == null || isResearchForecast(value.researchForecast))
   )
 }
 

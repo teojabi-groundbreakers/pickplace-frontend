@@ -261,7 +261,6 @@ export function ReferenceDashboard({
     setExploreRegion(null)
     setDismissedState(null)
     setInvalidatedState(null)
-
     const industryName =
       businessTypes.status === 'success'
         ? businessTypes.items.find((item) => item.businessTypeCode === nextIndustryCode)
