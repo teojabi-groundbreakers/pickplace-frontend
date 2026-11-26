@@ -29,6 +29,133 @@ export interface AnalysisRequest {
   industryCode: string
 }
 
+export interface AnalysisDisplayContext {
+  regionName: string
+  industryName: string
+  center: [number, number]
+}
+
+export interface AiMetricDecision {
+  value: number | null
+  status: 'AVAILABLE' | 'NO_DATA' | 'UNAVAILABLE'
+  reasonCode: string | null
+}
+
+export interface RegionalSummaryMetric extends AiMetricDecision {
+  unit: 'PERSON' | 'STORE'
+  source: { datasetCode: string; referenceOn: string }
+}
+
+export interface RegionalSummary {
+  data: {
+    region: { regionCode: string }
+    businessType: { businessTypeCode: string }
+    metrics: {
+      registeredPopulation: RegionalSummaryMetric
+      listedStoreCount: RegionalSummaryMetric
+    }
+  }
+  meta: { requestId: string; referenceMonth: string }
+}
+
+export interface AiIndicator {
+  status: 'available' | 'unavailable'
+  reason: string | null
+  score: number | null
+  policy_status: string
+  components: { name: string; value: number; unit: string; contribution_points: number }[]
+}
+
+export interface AiGrowth {
+  status: 'available' | 'unavailable'
+  reason: string | null
+  estimated_yoy_growth: number | null
+  target_period: string
+  comparison_period: string
+  model_version: string | null
+  explanations: {
+    feature: string
+    method: string
+    observed_value: number
+    reference_value: number
+    delta_growth: number
+    direction?: 'positive' | 'negative'
+  }[]
+}
+
+export interface AiModelResult {
+  schema_version: '1.0'
+  region_code: string
+  region_code_system: string
+  industry_code: string
+  source_kind: 'official'
+  as_of: string
+  base_period: string
+  model_version: string | null
+  policy_version: string
+  warnings: string[]
+  growth: AiGrowth
+  risk: AiIndicator
+  fit: AiIndicator
+}
+
+interface AiAnalysisResponseBase {
+  request: AnalysisRequest
+  asOf: string
+  statistics: {
+    version: string
+    metrics: Record<string, AiMetricDecision>
+  }
+}
+
+interface AiAnalysisState {
+  state: 'SKIPPED' | 'FAILED' | 'AVAILABLE'
+  reason: string | null
+  transportStatus: string | null
+}
+
+export interface AiAnalysisV1Response extends AiAnalysisResponseBase {
+  schemaVersion?: '1.0'
+  basePeriod: string
+  ai: AiAnalysisState & { result: AiModelResult | null }
+}
+
+export type AiPeriodMetric =
+  | { status: 'available'; basePeriod: string; value: number; reason: null }
+  | { status: 'unavailable'; basePeriod: string | null; value: null; reason: string }
+
+export type AiPeriodGrowth = AiPeriodMetric & {
+  targetPeriod: string | null
+  comparisonPeriod: string | null
+}
+
+export interface AiPeriodMetrics {
+  growth: AiPeriodGrowth
+  risk: AiPeriodMetric
+  fit: AiPeriodMetric
+}
+
+export interface AiAnalysisScope {
+  sourceRegionCode: string
+  sourceIndustryCode: string
+  sourceIndustryName: string
+  industryMatch: 'EXACT' | 'PARTIAL'
+  referenceOnly: boolean
+}
+
+export interface AiAnalysisV2Response extends AiAnalysisResponseBase {
+  schemaVersion: '2.0'
+  ai: AiAnalysisState & {
+    metrics: AiPeriodMetrics
+    warnings: string[]
+    analysisScope?: AiAnalysisScope | null
+  }
+}
+
+export type AiAnalysisResponse = AiAnalysisV1Response | AiAnalysisV2Response
+
+export type AiAnalysisDisplay = AiAnalysisResponse & { requestId: string }
+
 export interface Score {
   value: number
   grade: string
@@ -83,7 +210,7 @@ export interface Analysis {
   request: AnalysisRequest
   regionName: string
   industryName: string
-  period: string
+  period: string | null
   analyzedAt: string
   source: 'demo' | 'api'
   scores: { overall: Score | null; growth: Score | null; risk: Score | null; fit: Score | null }
@@ -93,7 +220,9 @@ export interface Analysis {
   map: { center: [number, number]; boundary: [number, number][]; places: MapPlace[] }
   summary: string
   recommendations: string[]
+  regionalSummary?: RegionalSummary
   researchForecast?: ResearchForecast | null
+  ai?: AiAnalysisDisplay | null
 }
 
 export type DemoScenario = 'success' | 'empty' | 'error'

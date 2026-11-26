@@ -57,8 +57,9 @@ describe('부분 결과 전체 화면 흐름', () => {
     )
     expect(screen.getByText('종합점수는 아직 제공되지 않습니다.')).toBeInTheDocument()
     expect(screen.getByText('제공된 추이 데이터가 없습니다.')).toBeInTheDocument()
-    expect(screen.getByText(/전년 동기 대비 \+5\.0%/)).toBeInTheDocument()
-    expect(screen.getByText(/지역별 학습 범위는 검증되지 않았습니다/)).toBeInTheDocument()
+    expect(screen.getByText('+5.0%')).toBeVisible()
+    expect(screen.getByText('전년 동기 대비')).toBeVisible()
+    expect(screen.getByText(/실제 예측 성능은 검증되지 않았습니다/)).toBeVisible()
   })
 
   it('점수 없는 결과를 보존하고 저장 목록에서 미제공으로 보여준다', () => {
