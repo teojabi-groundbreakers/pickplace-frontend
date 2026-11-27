@@ -1,5 +1,12 @@
 # 작업 이력
 
+## 2026-11-28 · #25 지도 위치 조회 카드 반영 준비
+
+- [이슈 #25](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/25)의 작업 브랜치 `fix/25-location-card`를 `develop`의 `6cdf706`과 대조했다. 3단계 지역 선택은 [PR #29](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/29)에 반영되어 있었고, 조회 카드의 제목과 코드·좌표 표시는 이전 상태였다.
+- 조회에 성공하면 카드 제목에 전체 행정구역을 표시하고, 행정동 코드와 위도·경도 표시는 숨겼다. 조회 상태, 경계 안내, 분석·둘러보기에서 사용하는 코드와 좌표는 유지했다.
+- 자동 테스트 45개 파일·369개, 포맷·린트·빌드 및 diff 검사를 통과했다. 빌드에서는 기존 PDF 번들 용량 경고가 표시됐다. 카카오 실지도에서 이번 변경을 다시 실행하지는 않았다.
+- 당시의 공식 코드 검증 스크립트와 로컬 포트·실행 기록은 기존 커밋 `50fb2f5`, `ef90c9f`에서 추적할 수 있다. 이번 PR의 파일 변경은 조회 카드와 관련 테스트·문서다.
+
 ## 2026-11-28 · FE PR #31 병합 전 리뷰
 
 - 열린 FE PR은 [#31](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/31) 1건이었다. `develop`의 `869b749`와 #31의 `4e0017b`를 비교해 빈 결과 카드 숨김, 실제 0 표시, 게시 현황과 AI 보류 사유를 검토했다. AI API 호출, 저장 형식, PDF 구현은 `develop`과 같다.

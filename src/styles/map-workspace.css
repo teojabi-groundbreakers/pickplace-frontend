@@ -344,11 +344,13 @@
   color: #617853;
 }
 
-.map-region-lookup small {
-  display: block;
-  color: #718168;
-  margin: 10px 0;
-  font-size: 10px;
+.lookup-heading > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lookup-heading > span svg {
+  flex-shrink: 0;
 }
 
 .map-region-lookup > button {
