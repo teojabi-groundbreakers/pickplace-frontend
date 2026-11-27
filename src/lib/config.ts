@@ -3,5 +3,9 @@ export const config = {
   demoMode: import.meta.env.VITE_DEMO_MODE !== 'false',
   kakaoMapAppKey: import.meta.env.VITE_KAKAO_MAP_APP_KEY || '',
   serviceApiPreview: import.meta.env.VITE_SERVICE_API_PREVIEW === 'true',
+  nationwideRegionsEnabled: import.meta.env.VITE_NATIONWIDE_REGIONS_ENABLED === 'true',
+  localResearchForecast:
+    import.meta.env.VITE_LOCAL_RESEARCH_FORECAST === 'true' &&
+    globalThis.location?.hostname === 'localhost',
   requestTimeout: 30_000,
 }

@@ -1,6 +1,7 @@
 import { loadKakaoMaps } from './kakaoMaps'
 import type { KakaoRegionResult } from './kakaoMaps'
 import { lookupAdministrativeRegion } from './regionLookup'
+import { isAdministrativeRegionCode } from './regionCode'
 
 export type ReferenceLocationErrorCode = 'NOT_FOUND' | 'MISMATCH' | 'SERVICE_ERROR' | 'TIMEOUT'
 
@@ -124,7 +125,7 @@ function candidatePosition(candidate: PlaceCandidate): [number, number] | null {
 /** Finds an actual place whose reverse-geocoded H region satisfies the caller's checks. */
 async function findVerifiedPlace(
   province: string,
-  district: string,
+  district: string | null,
   queries: string[],
   matchesRegion: (region: KakaoRegionResult) => boolean,
   appKey: string,
@@ -182,9 +183,9 @@ async function findVerifiedPlace(
         }
         if (
           region?.region_type === 'H' &&
-          /^\d{10}$/.test(region.code) &&
+          isAdministrativeRegionCode(region.code) &&
           region.region_1depth_name === province &&
-          region.region_2depth_name === district &&
+          (district === null || region.region_2depth_name === district) &&
           typeof region.region_3depth_name === 'string' &&
           region.region_3depth_name.trim() &&
           typeof region.address_name === 'string' &&
@@ -215,6 +216,65 @@ async function findVerifiedPlace(
   }
 }
 
+/** Uses the public group name as a search term and verifies the selected H10. */
+export function locateNationwideReferenceDong(
+  provinceName: string,
+  groupName: string,
+  localityName: string,
+  expectedH10: string,
+  appKey: string,
+  signal: AbortSignal,
+): Promise<LocatedReferenceDong> {
+  const province = provinceName.trim()
+  const group = groupName.trim()
+  const locality = localityName.trim()
+  if (!province || !group || !locality || !isAdministrativeRegionCode(expectedH10)) {
+    return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
+  }
+
+  const prefix = [province, ...(group === province ? [] : [group]), locality].join(' ')
+  return findVerifiedPlace(
+    province,
+    null,
+    [`${prefix} 주민센터`, prefix],
+    (region) => region.code === expectedH10,
+    appKey,
+    signal,
+  )
+}
+
+/** Uses only localities already verified by the caller as children of the selected group. */
+export function locateNationwideReferenceGroup(
+  provinceName: string,
+  groupName: string,
+  localityCodes: string[],
+  appKey: string,
+  signal: AbortSignal,
+): Promise<LocatedReferenceDong> {
+  const province = provinceName.trim()
+  const group = groupName.trim()
+  if (
+    !province ||
+    !group ||
+    !Array.isArray(localityCodes) ||
+    localityCodes.length === 0 ||
+    !localityCodes.every(isAdministrativeRegionCode)
+  ) {
+    return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
+  }
+
+  const codes = new Set(localityCodes)
+  const prefix = group === province ? province : `${province} ${group}`
+  return findVerifiedPlace(
+    province,
+    null,
+    [`${prefix}청`, prefix],
+    (region) => codes.has(region.code),
+    appKey,
+    signal,
+  )
+}
+
 /** Uses an independently verified, version-matched H10; names are only search terms. */
 export function locateReferenceDong(
   districtName: string,
@@ -228,7 +288,7 @@ export function locateReferenceDong(
   const province = provinceName.trim()
   const district = districtName.trim()
   const dong = dongName.trim()
-  if (!province || !district || !dong || !/^\d{10}$/.test(expectedH10)) {
+  if (!province || !district || !dong || !isAdministrativeRegionCode(expectedH10)) {
     return Promise.reject(new ReferenceLocationError('선택한 지역을 확인해 주세요.', 'NOT_FOUND'))
   }
   const names = [...new Set([dong, officialName.trim()].filter(Boolean))]

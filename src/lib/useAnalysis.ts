@@ -1,39 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Analysis, AnalysisRequest, DemoScenario } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisDisplayContext,
+  AnalysisRequest,
+  DemoScenario,
+} from '../types/analysis'
 import { analyze, ApiError } from './api'
 
 export type AnalysisState =
   | { status: 'idle' }
-  | { status: 'loading'; request: AnalysisRequest }
+  | { status: 'loading'; request: AnalysisRequest; context?: AnalysisDisplayContext }
   | { status: 'success'; result: Analysis }
-  | { status: 'error' | 'empty'; request: AnalysisRequest; message: string }
+  | {
+      status: 'error' | 'empty'
+      request: AnalysisRequest
+      message: string
+      context?: AnalysisDisplayContext
+    }
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>({ status: 'idle' })
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
-  const run = useCallback(async (request: AnalysisRequest, scenario?: DemoScenario) => {
-    controller.current?.abort()
-    const next = new AbortController()
-    controller.current = next
-    setState({ status: 'loading', request })
-    try {
-      const result = await analyze(request, next.signal, scenario)
-      if (!next.signal.aborted) setState({ status: 'success', result })
-    } catch (error) {
-      if (next.signal.aborted) return
-      setState({
-        status: error instanceof ApiError && error.code === 'INSUFFICIENT_DATA' ? 'empty' : 'error',
-        request,
-        message:
-          error instanceof ApiError && error.requestId
-            ? `${error.message} (요청 ID: ${error.requestId})`
-            : error instanceof Error
-              ? error.message
-              : '분석 중 문제가 발생했습니다.',
-      })
-    }
-  }, [])
+  const run = useCallback(
+    async (request: AnalysisRequest, scenario?: DemoScenario, context?: AnalysisDisplayContext) => {
+      controller.current?.abort()
+      const next = new AbortController()
+      controller.current = next
+      setState({ status: 'loading', request, context })
+      try {
+        const result = await analyze(request, next.signal, scenario, context)
+        if (!next.signal.aborted) setState({ status: 'success', result })
+      } catch (error) {
+        if (next.signal.aborted) return
+        setState({
+          status:
+            error instanceof ApiError && error.code === 'INSUFFICIENT_DATA' ? 'empty' : 'error',
+          request,
+          context,
+          message:
+            error instanceof ApiError && error.requestId
+              ? `${error.message} (요청 ID: ${error.requestId})`
+              : error instanceof Error
+                ? error.message
+                : '분석 중 문제가 발생했습니다.',
+        })
+      }
+    },
+    [],
+  )
   const open = (result: Analysis) => {
     controller.current?.abort()
     setState({ status: 'success', result })

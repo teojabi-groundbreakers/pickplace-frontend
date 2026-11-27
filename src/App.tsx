@@ -9,6 +9,7 @@ import { useAnalysis } from './lib/useAnalysis'
 import { Layout } from './components/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { ReferenceDashboard } from './pages/ReferenceDashboard'
+import { NationwideReferenceDashboard } from './pages/NationwideReferenceDashboard'
 import { Saved } from './pages/Saved'
 import { Guide } from './pages/Guide'
 import { About } from './pages/About'
@@ -73,6 +74,13 @@ function Workspace() {
                   setCatalogError('')
                   setCatalogAttempt((value) => value + 1)
                 }}
+                state={analysis.state}
+                run={analysis.run}
+                saved={reports}
+                onSave={save}
+              />
+            ) : config.nationwideRegionsEnabled ? (
+              <NationwideReferenceDashboard
                 state={analysis.state}
                 run={analysis.run}
                 saved={reports}

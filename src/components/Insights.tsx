@@ -10,40 +10,32 @@ export function Factors({ factors }: { factors: Analysis['factors'] }) {
         <h2>점수에 영향을 준 요인</h2>
         <span className="panel-caption">종합점수 기여도</span>
       </div>
-      {factors.length === 0 ? (
-        <p className="no-data">제공된 영향 요인이 없습니다.</p>
-      ) : (
-        <div className="factor-list">
-          {factors.map((factor) => (
-            <div
-              className="factor"
-              key={factor.name}
-            >
-              <span className={`factor-icon ${factor.contribution < 0 ? 'negative' : ''}`}>
-                {factor.contribution >= 0 ? (
-                  <ArrowUpRight size={17} />
-                ) : (
-                  <ArrowDownRight size={17} />
-                )}
-              </span>
-              <div className="factor-text">
-                <strong>{factor.name}</strong>
-                <span>{factor.description}</span>
-              </div>
-              <div className={`factor-value ${factor.contribution < 0 ? 'negative' : ''}`}>
-                <strong>
-                  {factor.contribution > 0 ? '+' : ''}
-                  {factor.contribution.toFixed(1)}
-                  <small>점</small>
-                </strong>
-                <div>
-                  <i style={{ width: `${(Math.abs(factor.contribution) / max) * 100}%` }} />
-                </div>
+      <div className="factor-list">
+        {factors.map((factor) => (
+          <div
+            className="factor"
+            key={factor.name}
+          >
+            <span className={`factor-icon ${factor.contribution < 0 ? 'negative' : ''}`}>
+              {factor.contribution >= 0 ? <ArrowUpRight size={17} /> : <ArrowDownRight size={17} />}
+            </span>
+            <div className="factor-text">
+              <strong>{factor.name}</strong>
+              <span>{factor.description}</span>
+            </div>
+            <div className={`factor-value ${factor.contribution < 0 ? 'negative' : ''}`}>
+              <strong>
+                {factor.contribution > 0 ? '+' : ''}
+                {factor.contribution.toFixed(1)}
+                <small>점</small>
+              </strong>
+              <div>
+                <i style={{ width: `${(Math.abs(factor.contribution) / max) * 100}%` }} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -54,9 +46,11 @@ export function Summary({ analysis }: { analysis: Analysis }) {
       <div className="panel-header">
         <h2>
           <Sparkles size={17} />
-          AI 상권 인사이트
+          {analysis.ai ? '분석 상태 안내' : 'AI 상권 인사이트'}
         </h2>
-        <Badge tone="neutral">{analysis.source === 'demo' ? '예시 진단' : '분석 요약'}</Badge>
+        <Badge tone="neutral">
+          {analysis.source === 'demo' ? '예시 진단' : analysis.ai ? '부분 결과' : '분석 요약'}
+        </Badge>
       </div>
       <p className="summary-text">{analysis.summary}</p>
       <div className="recommendations">
@@ -73,6 +67,8 @@ export function Summary({ analysis }: { analysis: Analysis }) {
 }
 
 export function Competition({ data }: { data: Analysis['competition'] }) {
+  if (data.length === 0) return null
+
   return (
     <section className="panel competition-panel">
       <div className="panel-header">
@@ -89,7 +85,6 @@ export function Competition({ data }: { data: Analysis['competition'] }) {
         </div>
       </div>
       <div className="competition-grid">
-        {data.length === 0 && <p className="no-data">비교 데이터가 없습니다.</p>}
         {data.map((item) => {
           const max = Math.max(item.local, item.average, 1)
           return (

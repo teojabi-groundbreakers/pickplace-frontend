@@ -6,6 +6,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReferenceDashboard } from '../pages/ReferenceDashboard'
+import { aiTestEnvelope } from './aiFixtures'
 
 const api = vi.hoisted(() => ({
   getDistricts: vi.fn(),
@@ -125,6 +126,136 @@ afterEach(() => {
 })
 
 describe('실제 백엔드 기준정보 화면', () => {
+  it('서버가 제공한 I 업종 코드로 AI 부분 결과를 표시하고 기존 점수는 만들지 않는다', async () => {
+    const request = { regionCode: '1111051500', industryCode: 'I21201' }
+    api.getBusinessTypes.mockResolvedValue(
+      payload([
+        { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
+      ]),
+    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(aiTestEnvelope(request))))
+    vi.stubGlobal('fetch', fetchMock)
+    const originalMode = config.demoMode
+    config.demoMode = false
+    try {
+      render(<DashboardUnderTest />)
+      await screen.findByRole('button', { name: '지도 위치 분석' })
+      await waitFor(() => expect(api.getBusinessTypes).toHaveBeenCalled())
+      const analysis = map.latest?.analysis as {
+        onAnalyze: (
+          region: { code: string; name: string; fullName: string; center: [number, number] },
+          industryCode: string,
+        ) => void
+      }
+      await act(async () => {
+        analysis.onAnalyze(
+          {
+            code: request.regionCode,
+            name: '청운효자동',
+            fullName: '서울특별시 종로구 청운효자동',
+            center: [37.58, 126.97],
+          },
+          request.industryCode,
+        )
+      })
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${config.apiBaseUrl}/ai/analyses`,
+        expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
+      )
+      expect(await screen.findByRole('heading', { name: 'AI 분석 상태' })).toBeInTheDocument()
+      expect(screen.getByText('AI 응답 확인')).toBeInTheDocument()
+      const growthHeading = screen.getByRole('heading', { name: '매출 성장률 추정' })
+      expect(growthHeading.closest('header')).toHaveTextContent('제공 불가')
+      expect(screen.getByText('사용 가능한 예측 모델 파일이 없습니다.').closest('article')).toBe(
+        growthHeading.closest('article'),
+      )
+      expect(screen.getByText('42.0 / 100')).toBeInTheDocument()
+      expect(screen.queryByText('종합 상권 점수')).not.toBeInTheDocument()
+      expect(screen.getByText(/정보 기준일 2026-11-13/)).toBeInTheDocument()
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
+  it('게시 현황과 AI 보류 사유를 표시하고 데이터 없는 결과 카드는 숨긴다', async () => {
+    const request = { regionCode: '1111051500', industryCode: 'I21201' }
+    api.getBusinessTypes.mockResolvedValue(
+      payload([
+        { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
+      ]),
+    )
+    const publishedSummary = {
+      data: {
+        region: { regionCode: request.regionCode },
+        businessType: { businessTypeCode: request.industryCode },
+        metrics: {
+          registeredPopulation: {
+            value: 10601,
+            unit: 'PERSON',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { referenceOn: '2026-10-31', datasetCode: 'POPULATION_MONTH' },
+          },
+          listedStoreCount: {
+            value: 80,
+            unit: 'STORE',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { referenceOn: '2026-09-30', datasetCode: 'STORE_SNAPSHOT' },
+          },
+        },
+      },
+      meta: { requestId: 'regional-summary', referenceMonth: '202610' },
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(publishedSummary)))
+    vi.stubGlobal('fetch', fetchMock)
+    const originalMode = config.demoMode
+    config.demoMode = false
+    try {
+      render(<DashboardUnderTest />)
+      await screen.findByRole('button', { name: '지도 위치 분석' })
+      const analysis = map.latest?.analysis as {
+        onAnalyze: (
+          region: { code: string; name: string; fullName: string; center: [number, number] },
+          industryCode: string,
+        ) => void
+      }
+      await act(async () => {
+        analysis.onAnalyze(
+          {
+            code: request.regionCode,
+            name: '청운효자동',
+            fullName: '서울특별시 종로구 청운효자동',
+            center: [37.58, 126.97],
+          },
+          request.industryCode,
+        )
+      })
+      expect(await screen.findByText('일반 AI 요청 보류')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(
+        '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
+      )
+      expect(screen.getByRole('heading', { name: '지역·업종 현황' })).toBeVisible()
+      expect(screen.getByText('10,601명')).toBeVisible()
+      expect(screen.getByText('80개')).toBeVisible()
+      expect(screen.getByText('2026년 10월 기준')).toBeVisible()
+      expect(screen.getByText('2026년 9월 기준')).toBeVisible()
+      expect(screen.queryByRole('article')).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', {
+          name: /상권 데이터 한눈에|점수에 영향을 준 요인|주변 상권과 비교하면/,
+        }),
+      ).not.toBeInTheDocument()
+    } finally {
+      config.demoMode = originalMode
+    }
+  })
+
   it('시도 선택을 초기화하면 하위 지역이 해제되고 검색으로 서울 지역을 다시 선택한다', async () => {
     const user = userEvent.setup()
     api.getAdministrativeDongs.mockImplementation((code: string) =>
@@ -265,7 +396,7 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '지도 위치 분석' }))
       await screen.findByText('분석을 완료하지 못했어요')
       expect(fetchMock).toHaveBeenCalledWith(
-        `${config.apiBaseUrl}/analyses`,
+        `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ regionCode: '1111051500', industryCode: 'CS100010' }),
@@ -283,8 +414,8 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
+    const result = aiTestEnvelope(request)
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
     try {
       render(<DashboardUnderTest />)
@@ -294,9 +425,10 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
       expect(fetchMock).toHaveBeenLastCalledWith(
-        `${config.apiBaseUrl}/analyses`,
+        `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
@@ -307,8 +439,8 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '9999999999', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
+    const result = aiTestEnvelope(request)
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
 
     try {
@@ -335,13 +467,18 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '업종·지역 조건' }))
       expect(screen.getByLabelText('시·도')).toHaveValue('')
       expect(screen.getByLabelText('시·군·구')).toBeDisabled()
-      expect(screen.getByText('경기도 수원시 장안구 가상동')).toBeInTheDocument()
+      expect(
+        within(screen.getByRole('region', { name: '지역과 업종 목록' })).getByText(
+          '경기도 수원시 장안구 가상동',
+        ),
+      ).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
       expect(fetchMock).toHaveBeenLastCalledWith(
-        `${config.apiBaseUrl}/analyses`,
+        `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
@@ -352,7 +489,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
+    const result = aiTestEnvelope(request)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(result))))
     try {
       render(<DashboardUnderTest />)
@@ -376,7 +513,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     const originalMode = config.demoMode
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
-    const result = { ...createDemoAnalysis(defaultRequest), request, source: 'api' }
+    const result = aiTestEnvelope(request)
     const fetchMock = vi
       .fn()
       .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(result))))
@@ -519,7 +656,15 @@ describe('실제 백엔드 기준정보 화면', () => {
     )
     await user.selectOptions(screen.getByLabelText('지원 업종'), 'CS100010')
     await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
-    expect(run).toHaveBeenCalledWith({ regionCode: officialCode, industryCode: 'CS100010' })
+    expect(run).toHaveBeenCalledWith(
+      { regionCode: officialCode, industryCode: 'CS100010' },
+      undefined,
+      {
+        regionName: '서울특별시 종로구 청운효자동 · 청운효자동 주민센터 주변',
+        industryName: '커피·음료',
+        center: verified.center,
+      },
+    )
   })
 
   it('이미 선택된 구를 다시 검색해 선택해도 위치와 동 목록을 유지한다', async () => {

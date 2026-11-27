@@ -76,17 +76,18 @@ export function TrendChart({ trends }: { trends: TrendPoint[] }) {
   const [active, setActive] = useState<number | null>(null)
   const [showTable, setShowTable] = useState(false)
   const gradientId = useId().replace(/:/g, '')
-  if (trends.length === 0) {
-    return (
-      <section
-        className="panel trend-panel"
-        aria-label="상권 추이 차트"
-      >
-        <h2>상권 데이터 한눈에</h2>
-        <p className="no-data">표시할 추이 데이터가 없습니다.</p>
-      </section>
-    )
-  }
+  const hasData = trends.some((point) =>
+    [
+      point.sales,
+      point.population,
+      point.stores,
+      point.openings,
+      point.closures,
+      point.averageSales,
+    ].some((value) => value !== null),
+  )
+  if (!hasData) return null
+
   const data = trends.slice(-range)
   const info = metadata[metric]
   const last = data[data.length - 1]

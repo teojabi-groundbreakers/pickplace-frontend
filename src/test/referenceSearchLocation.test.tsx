@@ -29,9 +29,7 @@ function renderSearch(locationState: LocationState, pointRegion: MapRegion | nul
           {
             dongCode: '11560700',
             dongName: '대림1동',
-            districtCode: '11560',
             officialCodeStatus: 'CURRENT',
-            regionVersion: 'test-version',
           },
         ],
       }}

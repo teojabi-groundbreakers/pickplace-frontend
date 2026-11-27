@@ -1,4 +1,12 @@
-import type { Analysis, AnalysisRequest, Catalog } from '../types/analysis'
+import type {
+  Analysis,
+  AnalysisRequest,
+  Catalog,
+  RegionalSummary,
+  ResearchForecast,
+} from '../types/analysis'
+import { isAiAnalysisDisplay, isMetricDecision } from './aiAnalysis'
+import { isAdministrativeRegionCode } from './regionCode'
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -38,12 +46,44 @@ const calendarDate = (value: unknown) => {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
-const researchForecast = (value: unknown) => {
-  if (value == null) return true
+export function isRegionalSummary(
+  value: unknown,
+  request: AnalysisRequest,
+): value is RegionalSummary {
+  if (!object(value) || !object(value.data) || !object(value.meta)) return false
+  const { data, meta } = value
+  if (
+    !object(data.region) ||
+    data.region.regionCode !== request.regionCode ||
+    !object(data.businessType) ||
+    data.businessType.businessTypeCode !== request.industryCode ||
+    !object(data.metrics) ||
+    !str(meta.requestId) ||
+    typeof meta.referenceMonth !== 'string' ||
+    !/^\d{4}(0[1-9]|1[0-2])$/.test(meta.referenceMonth)
+  ) {
+    return false
+  }
+
+  const matchesMetric = (metric: unknown, unit: string, datasetCode: string) =>
+    object(metric) &&
+    isMetricDecision(metric) &&
+    metric.unit === unit &&
+    object(metric.source) &&
+    metric.source.datasetCode === datasetCode &&
+    calendarDate(metric.source.referenceOn)
+
+  return (
+    matchesMetric(data.metrics.registeredPopulation, 'PERSON', 'POPULATION_MONTH') &&
+    matchesMetric(data.metrics.listedStoreCount, 'STORE', 'STORE_SNAPSHOT')
+  )
+}
+
+export function isResearchForecast(value: unknown): value is ResearchForecast {
   if (
     !object(value) ||
     value.mode !== 'experimental_research_only' ||
-    !['model_inference', 'precomputed_snapshot'].includes(String(value.method)) ||
+    (value.method !== 'model_inference' && value.method !== 'precomputed_snapshot') ||
     !quarter(value.basePeriod) ||
     !calendarDate(value.dataAsOf) ||
     !str(value.modelVersion) ||
@@ -59,10 +99,8 @@ const researchForecast = (value: unknown) => {
         object(prediction) &&
         quarter(prediction.targetPeriod) &&
         String(prediction.targetPeriod) > String(value.basePeriod) &&
-        [
-          'completed_quarter_unobserved_estimate',
-          'in_progress_or_future_quarter_estimate',
-        ].includes(String(prediction.estimateKind)) &&
+        (prediction.estimateKind === 'completed_quarter_unobserved_estimate' ||
+          prediction.estimateKind === 'in_progress_or_future_quarter_estimate') &&
         list(prediction.warnings, str) &&
         (prediction.retrospectiveTest == null ||
           (object(prediction.retrospectiveTest) &&
@@ -130,10 +168,17 @@ export function isAnalysis(value: unknown): value is Analysis {
     return false
   }
 
+  const ai = value.ai
+  if (ai != null && !isAiAnalysisDisplay(ai)) return false
+  const periodMatches =
+    ai?.schemaVersion === '2.0'
+      ? value.period === null
+      : /^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)
+
   return (
     str(value.regionName) &&
     str(value.industryName) &&
-    (/^\d{4}\.(0[1-9]|1[0-2])$/.test(String(value.period)) || quarter(value.period)) &&
+    periodMatches &&
     str(value.analyzedAt) &&
     /(?:Z|[+-]\d{2}:\d{2})$/.test(value.analyzedAt) &&
     Number.isFinite(Date.parse(value.analyzedAt)) &&
@@ -183,7 +228,12 @@ export function isAnalysis(value: unknown): value is Analysis {
     ) &&
     str(value.summary) &&
     list(value.recommendations, str) &&
-    researchForecast(value.researchForecast)
+    (value.regionalSummary === undefined ||
+      isRegionalSummary(value.regionalSummary, {
+        regionCode: value.request.regionCode,
+        industryCode: value.request.industryCode,
+      })) &&
+    (value.researchForecast == null || isResearchForecast(value.researchForecast))
   )
 }
 
@@ -192,7 +242,8 @@ export function validateSelection(
   catalog: Catalog,
   resolvedRegionCode?: string,
 ): string | null {
-  const resolved = resolvedRegionCode === request.regionCode && /^\d{10}$/.test(resolvedRegionCode)
+  const resolved =
+    resolvedRegionCode === request.regionCode && isAdministrativeRegionCode(resolvedRegionCode)
   if (
     !resolved &&
     !catalog.cities.some((city) =>
