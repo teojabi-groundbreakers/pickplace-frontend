@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import type {
   AiAnalysisDisplay,
   AiPeriodGrowth,
@@ -17,7 +17,6 @@ import {
   aiReferenceScopeNote,
   aiReferenceScopeText,
   aiRequestNoticeText,
-  aiRequestStatusText,
   aiRiskDirection,
   aiStatisticsRows,
   fitReferenceBasisNote,
@@ -35,11 +34,26 @@ import { FitReferenceBenchmark, FitReferenceIndicators } from './FitComparison'
 import { Badge } from './ui'
 import './ai-diagnosis.css'
 
-function IndicatorHeading({ title, value }: { title: string; value: string | null }) {
+function IndicatorHeading({
+  title,
+  value,
+  pending = false,
+}: {
+  title: string
+  value: string | null
+  pending?: boolean
+}) {
   return (
     <header className="ai-indicator-heading">
       <h3>{title}</h3>
-      {value === null ? (
+      {pending ? (
+        <p
+          className="ai-indicator-neutral"
+          role="status"
+        >
+          연구용 추정 확인 중…
+        </p>
+      ) : value === null ? (
         <p className="ai-indicator-unavailable">제공 불가</p>
       ) : (
         <p className="ai-indicator-value">{value}</p>
@@ -75,6 +89,7 @@ function GrowthIndicator({
     return () => controller.abort()
   }, [industryCode, regionCode, useResearch])
 
+  const researchPending = useResearch && lookup === null
   const research = useResearch && lookup?.status === 'available' ? lookup : null
   const estimate = research?.forecast.predictions.find(
     (prediction) => prediction.targetPeriod === '2026Q4' && prediction.status === 'available',
@@ -104,41 +119,44 @@ function GrowthIndicator({
       <IndicatorHeading
         title="매출 성장률 추정"
         value={value}
+        pending={researchPending}
       />
-      <div className="ai-indicator-details">
-        {hasResearch ? (
-          <>
-            <p className="ai-indicator-period ai-indicator-research">
-              <Badge tone="neutral">연구용 추정</Badge>
-              <span>{aiBasePeriodText(research.forecast.basePeriod)}</span>
-            </p>
-            <p className="ai-indicator-comparison">{estimate.targetPeriod} 추정 · 전년 동기 대비</p>
-            <p className="ai-indicator-comparison">{research.scopeLabel}</p>
-            <small>{researchForecastNote}</small>
-          </>
-        ) : (
-          <>
-            <p className="ai-indicator-period">{aiBasePeriodText(indicator.basePeriod)}</p>
-            {growthPeriods && <p className="ai-indicator-comparison">{growthPeriods}</p>}
-            {indicator.status === 'unavailable' && (
-              <p className="ai-indicator-comparison">{aiReasonText(indicator.reason)}</p>
-            )}
-            {useResearch && (
-              <p
-                className="ai-indicator-comparison"
-                role="status"
-              >
-                {!lookup
-                  ? '연구용 추정치를 확인 중입니다.'
-                  : lookup.status === 'error'
+      {!researchPending && (
+        <div className="ai-indicator-details">
+          {hasResearch ? (
+            <>
+              <p className="ai-indicator-period ai-indicator-research">
+                <Badge tone="neutral">연구용 추정</Badge>
+                <span>{aiBasePeriodText(research.forecast.basePeriod)}</span>
+              </p>
+              <p className="ai-indicator-comparison">
+                {estimate.targetPeriod} 추정 · 전년 동기 대비
+              </p>
+              <p className="ai-indicator-comparison">{research.scopeLabel}</p>
+              <small>{researchForecastNote}</small>
+            </>
+          ) : (
+            <>
+              <p className="ai-indicator-period">{aiBasePeriodText(indicator.basePeriod)}</p>
+              {growthPeriods && <p className="ai-indicator-comparison">{growthPeriods}</p>}
+              {indicator.status === 'unavailable' && (
+                <p className="ai-indicator-comparison">{aiReasonText(indicator.reason)}</p>
+              )}
+              {useResearch && (
+                <p
+                  className="ai-indicator-comparison"
+                  role="status"
+                >
+                  {lookup?.status === 'error'
                     ? '연구용 추정치를 불러오지 못했습니다.'
                     : '이 지역·업종의 연구용 추정치를 제공할 수 없습니다.'}
-              </p>
-            )}
-            <small>예측값은 보장된 매출이나 창업 성공 확률이 아닙니다.</small>
-          </>
-        )}
-      </div>
+                </p>
+              )}
+              <small>예측값은 보장된 매출이나 창업 성공 확률이 아닙니다.</small>
+            </>
+          )}
+        </div>
+      )}
     </article>
   )
 }
@@ -147,12 +165,10 @@ function DraftIndicator({
   title,
   indicator,
   direction,
-  comparison,
 }: {
   title: string
   indicator: AiPeriodMetric
   direction: string
-  comparison?: ReactNode
 }) {
   const value = indicator.status === 'available' ? `${indicator.value.toFixed(1)} / 100` : null
 
@@ -163,16 +179,13 @@ function DraftIndicator({
         value={value}
       />
       <div className="ai-indicator-details">
-        {(indicator.basePeriod || !comparison) && (
-          <p className="ai-indicator-period">{aiBasePeriodText(indicator.basePeriod)}</p>
-        )}
+        <p className="ai-indicator-period">{aiBasePeriodText(indicator.basePeriod)}</p>
         {indicator.status === 'available' ? (
           <p>{direction}</p>
         ) : (
           <p className="ai-indicator-comparison">{aiReasonText(indicator.reason)}</p>
         )}
-        {(indicator.status === 'available' || !comparison) && <small>{aiDraftScoreNote}</small>}
-        {comparison}
+        <small>{aiDraftScoreNote}</small>
       </div>
     </article>
   )
@@ -239,8 +252,6 @@ export function AiDiagnosis({
     fitReference.status === 'available' ? fitReferenceBasisNote : null,
     ...(result?.warnings.map(aiWarningText) ?? []),
   ].filter((note): note is string => note !== null)
-  const requestStatus = aiRequestStatusText(ai, Boolean(result))
-
   return (
     <>
       <section
@@ -249,11 +260,6 @@ export function AiDiagnosis({
       >
         <div className="panel-header">
           <h2>AI 분석 상태</h2>
-          <Badge
-            tone={ai.state === 'AVAILABLE' ? 'green' : ai.state === 'FAILED' ? 'orange' : 'neutral'}
-          >
-            {requestStatus}
-          </Badge>
         </div>
         <div className="ai-diagnosis-body">
           <p className="ai-as-of">정보 기준일 {data.asOf}</p>
@@ -296,13 +302,24 @@ export function AiDiagnosis({
                   indicator={result.risk}
                   direction={aiRiskDirection}
                 />
-                <DraftIndicator
-                  title="업종 적합도 지수"
-                  indicator={result.fit}
-                  direction={aiFitDirection}
-                  comparison={localSelection && <FitReferenceIndicators state={fitReference} />}
-                />
+                {result.fit.status === 'available' && (
+                  <DraftIndicator
+                    title="업종 적합도 지수"
+                    indicator={result.fit}
+                    direction={aiFitDirection}
+                  />
+                )}
               </div>
+              {result.fit.status === 'unavailable' &&
+                (ai.state === 'AVAILABLE' || result.fit.reason !== ai.reason) && (
+                  <p className="ai-indicator-comparison">
+                    업종 적합도 지수 미제공
+                    {result.fit.basePeriod ? ` · ${aiBasePeriodText(result.fit.basePeriod)}` : ''}
+                    {'. '}
+                    {aiReasonText(result.fit.reason)}
+                  </p>
+                )}
+              <FitReferenceIndicators state={fitReference} />
             </>
           )}
           <p className="ai-location-note">{aiLocationNote}</p>

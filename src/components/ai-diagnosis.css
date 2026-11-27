@@ -11,21 +11,9 @@
   font-size: 11px;
 }
 
-.ai-diagnosis .badge-green,
 .ai-diagnosis .badge-neutral {
   background: var(--analysis-muted-surface, #f5f6f7);
-}
-
-.ai-diagnosis .badge-green {
-  color: var(--color-brand);
-}
-
-.ai-diagnosis .badge-neutral {
   color: #4b5563;
-}
-
-.ai-diagnosis .badge-orange {
-  color: #775025;
 }
 
 .ai-diagnosis-body {
@@ -144,8 +132,7 @@
 .regional-summary-value {
   color: var(--color-brand-dark);
   font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-weight: 400;
 }
 
 .regional-summary-metrics time {
@@ -158,6 +145,11 @@
   font-size: 22px;
   font-weight: 400;
   line-height: 1.25;
+  white-space: nowrap;
+}
+
+.ai-indicator-neutral {
+  color: #4b5563;
   white-space: nowrap;
 }
 

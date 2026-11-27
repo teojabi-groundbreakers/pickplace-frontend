@@ -6,18 +6,16 @@ import { isAiAnalysisResponse, toAnalysis } from '../lib/aiAnalysis'
 import { getLocalResearchForecast, type LocalResearchResult } from '../lib/localResearchForecast'
 import { persistReports, readReports } from '../lib/reports'
 import { buildReportPdfModel } from '../lib/reportPdfModel'
+import { useFitReference } from '../lib/useFitReference'
 import { Saved } from '../pages/Saved'
 import { aiPeriodTestEnvelope, aiTestContext, aiTestEnvelope, aiTestRequest } from './aiFixtures'
 
 vi.mock('../lib/localResearchForecast', () => ({
   getLocalResearchForecast: vi.fn(),
 }))
-vi.mock('../lib/useFitReference', () => ({
-  useFitReference: () => ({ status: 'idle' }),
-}))
-vi.mock('../components/FitComparison', () => ({
-  FitReferenceIndicators: () => null,
-  FitReferenceBenchmark: () => null,
+vi.mock(import('../lib/useFitReference'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  useFitReference: vi.fn(),
 }))
 
 const loadResearch = vi.mocked(getLocalResearchForecast)
@@ -47,6 +45,7 @@ const coffeeResearch: LocalResearchResult = {
 
 beforeEach(() => {
   loadResearch.mockReset()
+  vi.mocked(useFitReference).mockReset().mockReturnValue({ status: 'idle' })
 })
 
 function indicatorCard(heading: string) {
@@ -56,7 +55,7 @@ function indicatorCard(heading: string) {
 }
 
 describe('AI 부분 결과 안내와 보고서', () => {
-  it('성장률 카드에서 2분기 자료를 사용한 4분기 연구 결과를 자동 표시한다', async () => {
+  it('성장률 카드에서 연구용 추정을 확인하는 동안 미제공 안내를 숨긴다', async () => {
     const { data, meta } = aiPeriodTestEnvelope()
     loadResearch.mockResolvedValue(coffeeResearch)
     render(
@@ -67,7 +66,14 @@ describe('AI 부분 결과 안내와 보고서', () => {
     )
 
     const growth = indicatorCard('매출 성장률 추정')
+    expect(growth.getByRole('status')).toHaveTextContent('연구용 추정 확인 중…')
+    expect(growth.queryByText('제공 불가')).not.toBeInTheDocument()
+    expect(
+      growth.queryByText(/예측 대상 분기가 분석 기준일보다 이후가 아닙니다/),
+    ).not.toBeInTheDocument()
+
     expect(await growth.findByText('-9.2%')).toBeInTheDocument()
+    expect(growth.queryByText('연구용 추정 확인 중…')).not.toBeInTheDocument()
     expect(growth.getByText('연구용 추정')).toBeInTheDocument()
     expect(growth.getByText('2026Q2 기준')).toBeInTheDocument()
     expect(growth.getByText('2026Q4 추정 · 전년 동기 대비')).toBeInTheDocument()
@@ -111,8 +117,29 @@ describe('AI 부분 결과 안내와 보고서', () => {
     expect(
       await growth.findByText('이 지역·업종의 연구용 추정치를 제공할 수 없습니다.'),
     ).toBeInTheDocument()
+    expect(growth.getByText('제공 불가')).toBeInTheDocument()
     expect(growth.getByText(/예측 대상 분기가 분석 기준일보다 이후가 아닙니다/)).toBeInTheDocument()
+    expect(growth.queryByText('연구용 추정 확인 중…')).not.toBeInTheDocument()
     expect(growth.queryByText('연구용 추정')).not.toBeInTheDocument()
+  })
+
+  it('연구용 추정 조회에 실패하면 일반 성장률 사유와 실패 안내를 함께 표시한다', async () => {
+    const { data, meta } = aiPeriodTestEnvelope()
+    loadResearch.mockRejectedValue(new Error('network failure'))
+    render(
+      <AiDiagnosis
+        data={{ ...data, requestId: meta.requestId }}
+        localReferenceSelection={data.request}
+      />,
+    )
+
+    const growth = indicatorCard('매출 성장률 추정')
+    expect(await growth.findByText('연구용 추정치를 불러오지 못했습니다.')).toBeInTheDocument()
+    expect(growth.getByText('제공 불가')).toBeInTheDocument()
+    expect(
+      growth.getByText('예측 대상 분기가 분석 기준일보다 이후가 아닙니다.'),
+    ).toBeInTheDocument()
+    expect(growth.queryByText('연구용 추정 확인 중…')).not.toBeInTheDocument()
   })
 
   it('기존 결과와 선택이 달라지면 연구 요청을 취소한다', () => {
@@ -160,11 +187,11 @@ describe('AI 부분 결과 안내와 보고서', () => {
 
     const growth = indicatorCard('매출 성장률 추정')
     expect(await growth.findByText('-9.2%')).toBeInTheDocument()
-    expect(screen.getByText('일반 AI 요청 보류')).toBeInTheDocument()
     const diagnosis = screen.getByRole('region', { name: 'AI 분석 상태와 제공 가능한 결과' })
     expect(within(diagnosis).getByRole('status')).toHaveTextContent(
       '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
     )
+    expect(within(diagnosis).queryByText(/업종 적합도 지수 미제공/)).not.toBeInTheDocument()
     expect(growth.getByText('연구용 추정')).toBeInTheDocument()
     expect(screen.getByText('100명')).toBeInTheDocument()
   })
@@ -184,11 +211,9 @@ describe('AI 부분 결과 안내와 보고서', () => {
 
     render(<AiDiagnosis data={{ ...data, requestId: meta.requestId }} />)
 
-    expect(screen.getByText('서울 외 일반 AI 미지원')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(
       '일반 AI 분석은 현재 서울 지역만 지원합니다.',
     )
-    expect(screen.queryByText('일반 AI 요청 보류')).not.toBeInTheDocument()
     expect(screen.getByText('100명')).toBeInTheDocument()
     expect(loadResearch).not.toHaveBeenCalled()
   })
@@ -198,7 +223,6 @@ describe('AI 부분 결과 안내와 보고서', () => {
     data.ai.reason = 'ai_timeout'
     data.ai.transportStatus = 'UNAVAILABLE'
     render(<AiDiagnosis data={{ ...data, requestId: 'failed-test' }} />)
-    expect(screen.getByText('AI 응답 실패')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('AI 서버의 응답 시간이 초과되었습니다.')
     expect(screen.queryByText('42.0 / 100')).not.toBeInTheDocument()
   })
@@ -258,9 +282,7 @@ describe('AI 부분 결과 안내와 보고서', () => {
         /선택 업종의 수록 자료/,
       ),
     ).toBeInTheDocument()
-    expect(
-      indicatorCard('업종 적합도 지수').getByText(/검증된 자료가 부족합니다/),
-    ).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '업종 적합도 지수' })).not.toBeInTheDocument()
     expect(indicatorCard('위험 지수').getByText('42.0 / 100')).toBeInTheDocument()
     expect(screen.getByText('상주인구')).toBeInTheDocument()
 
@@ -273,6 +295,71 @@ describe('AI 부분 결과 안내와 보고서', () => {
 
     data.ai.analysisScope.referenceOnly = false
     expect(isAiAnalysisResponse(data)).toBe(false)
+  })
+
+  it('적합도 점수가 없으면 사유와 참고 지표의 조회 상태를 별도로 표시한다', () => {
+    const { data, meta } = aiPeriodTestEnvelope()
+    data.ai.metrics.fit = {
+      basePeriod: '2026Q3',
+      status: 'unavailable',
+      value: null,
+      reason: 'insufficient_verified_data',
+    }
+    const props = {
+      data: { ...data, requestId: meta.requestId },
+      localReferenceSelection: data.request,
+    }
+    loadResearch.mockReturnValue(new Promise(() => {}))
+    const fitLookup = vi.mocked(useFitReference)
+    fitLookup.mockReturnValue({ status: 'loading' })
+    const { rerender } = render(<AiDiagnosis {...props} />)
+
+    expect(screen.queryByRole('heading', { name: '업종 적합도 지수' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '업종 적합도 지수 미제공 · 2026Q3 기준. 이 지표를 계산하는 데 필요한 검증된 자료가 부족합니다.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('비교 지표 조회 중…')).toBeInTheDocument()
+    fitLookup.mockReturnValue({
+      status: 'available',
+      reference: {
+        referenceDate: '2026-06-30',
+        sourceIndustryName: '커피 전문점',
+        cohortSize: 121,
+        residentsPerStore: { value: 86.15, percentile: 5 },
+        storesPerKm2: { value: 48.03, percentile: 46.67 },
+      },
+    })
+    rerender(<AiDiagnosis {...props} />)
+
+    expect(screen.queryByRole('heading', { name: '업종 적합도 지수' })).not.toBeInTheDocument()
+    expect(screen.queryByText('비교 지표 조회 중…')).not.toBeInTheDocument()
+    const reference = within(
+      screen.getByRole('region', { name: '서울 원천 커피 전문점 참고 지표' }),
+    )
+    expect(reference.getByText('2026-06-30')).toHaveAttribute('datetime', '2026-06-30')
+    expect(reference.getByText('86.15명')).toBeInTheDocument()
+    expect(reference.getByText('48.03곳/㎢')).toBeInTheDocument()
+
+    fitLookup.mockReturnValue({ status: 'error' })
+    rerender(<AiDiagnosis {...props} />)
+    expect(screen.getByText('비교 지표를 불러오지 못했습니다.')).toBeInTheDocument()
+
+    fitLookup.mockReturnValue({ status: 'unavailable', reason: 'not_available' })
+    rerender(<AiDiagnosis {...props} />)
+    expect(screen.getByText('이 지역에 제공할 비교 지표가 없습니다.')).toBeInTheDocument()
+
+    fitLookup.mockReturnValue({ status: 'unavailable', reason: 'boundary_unverified' })
+    rerender(<AiDiagnosis {...props} />)
+    expect(screen.queryByRole('heading', { name: '업종 적합도 지수' })).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/서울시와 행안부 자료의 행정동 경계가 기준만큼 겹치지 않습니다/),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: '서울 원천 커피 전문점 참고 지표' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '서울 동일 업종 비교' })).not.toBeInTheDocument()
   })
 
   it('AI 호출 실패가 다른 분기의 지표와 기본 통계를 가리지 않는다', () => {
