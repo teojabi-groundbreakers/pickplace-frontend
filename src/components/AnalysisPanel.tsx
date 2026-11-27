@@ -164,9 +164,11 @@ export function AnalysisPanel({
           <div className="analysis-results">
             <div className="result-heading">
               <div className="result-location">
-                <span className="result-location-icon">
-                  <MapPin size={19} />
-                </span>
+                <MapPin
+                  className="result-location-icon"
+                  size={19}
+                  aria-hidden="true"
+                />
                 <div>
                   <h2>
                     {result.regionName}

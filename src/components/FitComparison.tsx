@@ -11,16 +11,23 @@ export function FitReferenceIndicators({ state }: { state: FitReferenceState }) 
   if (state.status !== 'available') {
     const notice = fitReferenceNotice(state)
     return notice ? (
-      <small role={state.status === 'loading' || state.status === 'error' ? 'status' : undefined}>
+      <small
+        className="ai-indicator-comparison"
+        role={state.status === 'loading' || state.status === 'error' ? 'status' : undefined}
+      >
         {notice}
       </small>
     ) : null
   }
 
   const { referenceDate, sourceIndustryName, residentsPerStore, storesPerKm2 } = state.reference
+  const title = `서울 원천 ${sourceIndustryName} 참고 지표`
   return (
-    <div className="ai-fit-comparison">
-      <p className="ai-fit-comparison-heading">서울 원천 {sourceIndustryName} 참고 지표</p>
+    <section
+      className="ai-fit-comparison"
+      aria-label={title}
+    >
+      <h3 className="ai-fit-comparison-heading">{title}</h3>
       <p className="ai-indicator-comparison">
         자료 기준일 <time dateTime={referenceDate}>{referenceDate}</time>
       </p>
@@ -34,7 +41,7 @@ export function FitReferenceIndicators({ state }: { state: FitReferenceState }) 
           <dd>{fitMetricValueText(storesPerKm2, '곳/㎢')}</dd>
         </div>
       </dl>
-    </div>
+    </section>
   )
 }
 

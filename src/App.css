@@ -584,13 +584,8 @@ h1 {
 }
 
 .result-location-icon {
-  background: #edf1e6;
+  flex: none;
   color: #6f865b;
-  width: 37px;
-  height: 37px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
 }
 
 .result-location h2 {
@@ -2167,11 +2162,6 @@ td {
 
   .result-location p {
     display: none;
-  }
-
-  .result-location-icon {
-    width: 32px;
-    height: 32px;
   }
 
   .result-actions .button {

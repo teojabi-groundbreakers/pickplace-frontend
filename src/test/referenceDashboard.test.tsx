@@ -165,7 +165,7 @@ describe('실제 백엔드 기준정보 화면', () => {
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
       expect(await screen.findByRole('heading', { name: 'AI 분석 상태' })).toBeInTheDocument()
-      expect(screen.getByText('AI 응답 확인')).toBeInTheDocument()
+      expect(screen.queryByText('AI 응답 확인')).not.toBeInTheDocument()
       const growthHeading = screen.getByRole('heading', { name: '매출 성장률 추정' })
       expect(growthHeading.closest('header')).toHaveTextContent('제공 불가')
       expect(screen.getByText('사용 가능한 예측 모델 파일이 없습니다.').closest('article')).toBe(
@@ -236,8 +236,7 @@ describe('실제 백엔드 기준정보 화면', () => {
           request.industryCode,
         )
       })
-      expect(await screen.findByText('일반 AI 요청 보류')).toBeInTheDocument()
-      expect(screen.getByRole('status')).toHaveTextContent(
+      expect(await screen.findByRole('status')).toHaveTextContent(
         '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
       )
       expect(screen.getByRole('heading', { name: '지역·업종 현황' })).toBeVisible()
@@ -415,7 +414,12 @@ describe('실제 백엔드 기준정보 화면', () => {
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
     const result = aiTestEnvelope(request)
-    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
+    const refreshed = aiTestEnvelope(request)
+    if (refreshed.data.ai.result) refreshed.data.ai.result.risk.score = 43
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(result))
+      .mockResolvedValueOnce(Response.json(refreshed))
     vi.stubGlobal('fetch', fetchMock)
     try {
       render(<DashboardUnderTest />)
@@ -428,7 +432,7 @@ describe('실제 백엔드 기준정보 화면', () => {
         `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
-      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
+      expect(await screen.findByText('43.0 / 100')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
@@ -440,7 +444,12 @@ describe('실제 백엔드 기준정보 화면', () => {
     config.demoMode = false
     const request = { regionCode: '9999999999', industryCode: 'CS100010' }
     const result = aiTestEnvelope(request)
-    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
+    const refreshed = aiTestEnvelope(request)
+    if (refreshed.data.ai.result) refreshed.data.ai.result.risk.score = 43
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json(result))
+      .mockResolvedValueOnce(Response.json(refreshed))
     vi.stubGlobal('fetch', fetchMock)
 
     try {
@@ -478,7 +487,7 @@ describe('실제 백엔드 기준정보 화면', () => {
         `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
-      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
+      expect(await screen.findByText('43.0 / 100')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
