@@ -11,7 +11,7 @@
 
 BE는 현재 게시 자료로 코드의 존재·역할·소속·상태를 검증한다. 보조 필드와 오류 문구의 세부 정책, 현황·분석과 과거 지역 API는 각각의 계약으로 관리한다.
 
-현재 BE가 제공하는 기준정보 목록은 아래 별도 API에 맞춰 연결했습니다. 실제 모드의 AI 분석 호출은 아래 `POST /ai/analyses` 계약으로 연결했습니다. 기존 `POST /analyses` 전체 분석 응답은 별도 초안이며 현재 실제 모드에서 호출하지 않습니다. 독립 경계 응답은 아직 합의되지 않은 초안입니다. 모든 경로는 `VITE_API_BASE_URL` 뒤에 붙으며 요청 제한 시간은 30초입니다.
+기존 서울 실제 API 모드의 기준정보 목록과 AI 분석 호출은 아래 개별 API와 `POST /ai/analyses` 계약을 사용합니다. 전국 모드(`VITE_NATIONWIDE_REGIONS_ENABLED=true`)는 전국 목록 조회와 지도 이동을 지원하며 새 분석은 준비 중으로 표시합니다. 기존 `POST /analyses`와 독립 경계 응답은 별도 초안입니다. 모든 경로는 `VITE_API_BASE_URL` 뒤에 붙으며 요청 제한 시간은 30초입니다.
 
 백엔드 개발의 우선순위·산출물·현재 FE 제약·인수 시나리오는 [백엔드 인계 문서](BACKEND_HANDOFF.md)에 있습니다. 이 문서는 요청·응답 상세 계약의 원본으로 유지합니다.
 
@@ -145,7 +145,7 @@ Content-Type: application/json
 
 ## POST /ai/analyses (현재 실제 모드)
 
-`VITE_API_BASE_URL=/api`일 때 실제 요청 경로는 `/api/ai/analyses`입니다. 카카오 지도에서 확인한 H10과 `GET /business-types`가 반환한 지원 업종 코드를 원본 그대로 보냅니다. 서버에서 제공되는 업종은 현재 `I21201`과 같은 소진공 소분류 코드이며 FE는 임의 변환하지 않습니다. 지역명·업종 표시명·카카오에서 선택한 좌표는 **화면 표시용**으로만 사용하고 요청 본문에는 넣지 않습니다.
+기존 서울 실제 API 모드에서 `VITE_API_BASE_URL=/api`일 때 실제 요청 경로는 `/api/ai/analyses`입니다. 카카오 지도에서 확인한 H10과 `GET /business-types`가 반환한 지원 업종 코드를 원본 그대로 보냅니다. 서버에서 제공되는 업종은 현재 `I21201`과 같은 소진공 소분류 코드이며 FE는 임의 변환하지 않습니다. 지역명·업종 표시명·카카오에서 선택한 좌표는 **화면 표시용**으로만 사용하고 요청 본문에는 넣지 않습니다.
 
 ```json
 { "regionCode": "1111051500", "industryCode": "I21201" }
@@ -157,22 +157,25 @@ Content-Type: application/json
 
 FE는 봉투·요청 코드 일치·날짜·분기·상태·수치 범위를 검증합니다. 이전 원본 `Analysis` JSON을 성공 응답으로 받지 않습니다. 오류 응답은 BE 공통 `error.code`·`meta.requestId`를 사용하고 요청 ID를 오류 안내에 보여줍니다.
 
-로컬 `/__ai-flow-test/`에서 브라우저 → 격리 Spring → 실행 중인 FastAPI `/predict` → FE 카드까지 확인했다. 테스트 조합은 청운효자동·카페의 가상 코드 대응·가상 이력과 고정 분석일 2026-02-15를 사용하며 실제 업종 매핑과 지표 값을 검증하는 용도가 아니다. 일반 경로는 기존 BE에 연결되며 승인된 분석 입력이 준비되기 전에는 `mapping_unverified`로 AI 호출을 보류한다.
+기존 로컬 BE의 일반 분석에서 청운효자동·카페의 게시 현황과 AI 요청 보류(`mapping_unverified`)를 확인했습니다. 별도 로컬 `/__ai-flow-test/`에서는 가상 지역·업종 대응과 이력, 고정 분석일 2026-02-15를 사용해 브라우저에서 격리 Spring을 거쳐 FastAPI `/predict`를 호출하고 결과 카드를 확인했습니다. 일반 경로에서 승인된 입력으로 FastAPI까지 연결하는 검증은 남아 있습니다.
 
 ### 지표별 기준 분기 응답 초안
 
-2026-11-16 [BE 이슈 #36 합의](https://github.com/teojabi-groundbreakers/pickplace-backend/issues/36#issuecomment-6910272203)에 따라 FE가 지표별 기간을 읽고 표시하도록 준비했다. 아래 필드명과 `schemaVersion: "2.0"`은 FE가 지원하는 지표별 응답 형식이다. 단일 분기 형식도 받으며, 지표별 응답은 모의 테스트와 로컬 Spring 연결에서 검증했다. 기존 요청 본문과 경로를 그대로 사용하며 응답에서 명시된 버전에 따라 해석한다.
+2026-11-16 [BE 이슈 #36 합의](https://github.com/teojabi-groundbreakers/pickplace-backend/issues/36#issuecomment-6910272203)를 바탕으로 FE 파서가 지표별 기간이 담긴 `schemaVersion: "2.0"`을 지원한다. 기존 단일 분기 응답은 `schemaVersion`이 없거나 `"1.0"`일 때 계속 받는다. 두 형식의 요청 본문은 동일하다.
 
-| 위치                | 초안                                                                                                                                                                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `data`              | `schemaVersion: "2.0"`, `request`, `asOf`, `statistics`, `ai`. 공통 `basePeriod`는 생략한다.                                                                                                                                               |
-| `ai`                | `state`, `reason`, `transportStatus`, `warnings`, `metrics: {growth, risk, fit}`. 전체 요청 상태와 별도로 각 지표를 표시한다.                                                                                                              |
-| 각 지표             | `basePeriod`는 `YYYYQn` 또는 `null`. `status: "available"`이면 기준 분기와 유한한 `value`, `reason: null`이 필요하다. `"unavailable"`이면 `value: null`과 `reason`이 필요하다.                                                             |
-| `ai.metrics.growth` | `targetPeriod`와 `comparisonPeriod`를 함께 제공한다. 기간을 정할 수 없는 미제공 결과는 두 값을 `null`로 둔다. 기간이 있으면 기준 분기의 다음 분기와 전년 동기를 검증한다. 예측값을 제공하려면 대상 분기 종료일이 `asOf`보다 이후여야 한다. |
+현재 FE의 기본 호출은 `POST /api/ai/analyses`를 사용한다. BE `develop`의 지표별 응답은 별도 `POST /api/ai/analyses/v2`에 구현되어 있다. 서로 다른 지표 기준 분기는 모의 응답에서 확인했고, v2 형식은 로컬 Spring 연결에서도 확인했다. FE 기본 호출 경로의 전환과 공유 환경에서의 실제 자료 가용성은 별도 확인이 필요하다. [BE PR #44](https://github.com/teojabi-groundbreakers/pickplace-backend/pull/44)
 
-예를 들어 `asOf`가 `2026-11-16`이면 승인 자료를 가정한 모의 응답에서 Q2 기준 성장의 Q3 대상은 `target_not_future`로 보류하고, Q2 위험도와 Q3 적합도를 함께 제공할 수 있다. 각 카드와 보고서에 해당 지표의 기간과 사유를 표시한다. 통계는 별도 상태와 값을 보존하며 여러 지표를 묶은 종합점수는 만들지 않는다. 기준 분기 선택과 자료 승인 검증은 BE 책임이다. 오래된 자료 허용 범위·사유 코드와 지표별 출처·사용 가능일 필드는 후속 계약에서 확정한다.
+| 위치                | 초안                                                                                                                                                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data`              | `schemaVersion: "2.0"`, `request`, `asOf`, `statistics`, `ai`. 공통 `basePeriod`는 생략한다.                                                                                                                                                                   |
+| `ai`                | `state`, `reason`, `transportStatus`, `warnings`, `metrics: {growth, risk, fit}`. 전체 요청 상태와 별도로 각 지표를 표시한다.                                                                                                                                  |
+| `ai.analysisScope`  | 선택 필드. `AVAILABLE`에서만 객체를 제공할 수 있다. 서울 원천의 8자리 `sourceRegionCode`, `CS`와 숫자 6자리의 `sourceIndustryCode`, `sourceIndustryName`, `industryMatch`, `referenceOnly`를 보존한다. `EXACT`는 `referenceOnly: false`, `PARTIAL`은 `true`다. |
+| 각 지표             | `basePeriod`는 `YYYYQn` 또는 `null`. `status: "available"`이면 기준 분기와 유한한 `value`, `reason: null`이 필요하다. `"unavailable"`이면 `value: null`과 `reason`이 필요하다.                                                                                 |
+| `ai.metrics.growth` | `targetPeriod`와 `comparisonPeriod`를 함께 제공한다. 기간을 정할 수 없는 미제공 결과는 두 값을 `null`로 둔다. 기간이 있으면 기준 분기의 다음 분기와 전년 동기를 검증한다. 예측값을 제공하려면 대상 분기 종료일이 `asOf`보다 이후여야 한다.                     |
 
-저장소 키 `pickplace.reports.v1`에서 기존 단일 분기 결과와 지표별 분기 결과를 모두 읽는다. 기존 결과에 관측 분기를 새로 추정하지 않는다. 새 형식은 저장 시 `Analysis.period: null`을 사용하며 `ai.metrics`의 개별 기준 분기를 보존한다. 공유 개발·운영 환경의 데이터와 지표별 가용 범위는 별도 확인이 필요하다.
+예를 들어 `asOf`가 `2026-11-16`이면 승인 자료를 가정한 모의 응답에서 Q2 기준 성장의 Q3 대상은 `target_not_future`로 보류하고, Q2 위험도와 Q3 적합도를 함께 제공할 수 있다. 각 카드와 PDF 보고서에 해당 지표의 기간과 사유를 표시한다. 부분 대응으로 제공된 경우에는 서울 원천 업종과 참고 범위도 표시한다. 통계는 별도 상태와 값을 보존하며 여러 지표를 묶은 종합점수는 만들지 않는다. 기준 분기 선택과 자료 승인 검증은 BE 책임이다. 오래된 자료 허용 범위·사유 코드와 지표별 출처·사용 가능일 필드는 후속 계약에서 확정한다.
+
+저장소 키 `pickplace.reports.v1`에서 기존 단일 분기 결과와 지표별 분기 결과를 모두 읽는다. 기존 결과에 관측 분기를 새로 추정하지 않는다. 새 형식은 저장 시 `Analysis.period: null`을 사용하며 `ai.metrics`의 개별 기준 분기를 보존한다. 공유 개발·운영 환경에서 응답 형식·데이터 승인·지표별 가용 범위와 FE → BE → FastAPI 호출을 확인해야 한다.
 
 ## 분석 결과 화면 후속 연동
 

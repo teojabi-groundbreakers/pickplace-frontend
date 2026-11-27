@@ -173,23 +173,46 @@ describe('실제 백엔드 기준정보 화면', () => {
       )
       expect(screen.getByText('42.0 / 100')).toBeInTheDocument()
       expect(screen.queryByText('종합 상권 점수')).not.toBeInTheDocument()
-      expect(screen.queryByText('위험 점수는 아직 제공되지 않습니다.')).not.toBeInTheDocument()
       expect(screen.getByText(/정보 기준일 2026-11-13/)).toBeInTheDocument()
     } finally {
       config.demoMode = originalMode
     }
   })
 
-  it('AI 요청 보류 사유를 표시하고 빈 결과에 점수와 추이를 생성하지 않는다', async () => {
+  it('게시 현황과 AI 보류 사유를 표시하고 데이터 없는 결과 카드는 숨긴다', async () => {
     const request = { regionCode: '1111051500', industryCode: 'I21201' }
     api.getBusinessTypes.mockResolvedValue(
       payload([
         { businessTypeCode: request.industryCode, businessTypeName: '커피·음료', supported: true },
       ]),
     )
+    const publishedSummary = {
+      data: {
+        region: { regionCode: request.regionCode },
+        businessType: { businessTypeCode: request.industryCode },
+        metrics: {
+          registeredPopulation: {
+            value: 10601,
+            unit: 'PERSON',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { referenceOn: '2026-10-31', datasetCode: 'POPULATION_MONTH' },
+          },
+          listedStoreCount: {
+            value: 80,
+            unit: 'STORE',
+            status: 'AVAILABLE',
+            reasonCode: null,
+            source: { referenceOn: '2026-09-30', datasetCode: 'STORE_SNAPSHOT' },
+          },
+        },
+      },
+      meta: { requestId: 'regional-summary', referenceMonth: '202610' },
+    }
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(aiTestEnvelope(request, 'SKIPPED'))))
+      .mockResolvedValueOnce(new Response(JSON.stringify(publishedSummary)))
     vi.stubGlobal('fetch', fetchMock)
     const originalMode = config.demoMode
     config.demoMode = false
@@ -217,15 +240,22 @@ describe('실제 백엔드 기준정보 화면', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         '일반 AI 분석에 필요한 지역·업종 대응이 아직 승인되지 않았습니다.',
       )
-      expect(screen.queryByText('42.0 / 100')).not.toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: '상권 데이터 한눈에' })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '지역·업종 현황' })).toBeVisible()
+      expect(screen.getByText('10,601명')).toBeVisible()
+      expect(screen.getByText('80개')).toBeVisible()
+      expect(screen.getByText('2026년 10월 기준')).toBeVisible()
+      expect(screen.getByText('2026년 9월 기준')).toBeVisible()
+      expect(screen.queryByRole('article')).not.toBeInTheDocument()
       expect(
-        screen.queryByRole('heading', { name: '점수에 영향을 준 요인' }),
+        screen.queryByRole('heading', {
+          name: /상권 데이터 한눈에|점수에 영향을 준 요인|주변 상권과 비교하면/,
+        }),
       ).not.toBeInTheDocument()
     } finally {
       config.demoMode = originalMode
     }
   })
+
   it('시도 선택을 초기화하면 하위 지역이 해제되고 검색으로 서울 지역을 다시 선택한다', async () => {
     const user = userEvent.setup()
     api.getAdministrativeDongs.mockImplementation((code: string) =>
@@ -385,7 +415,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     config.demoMode = false
     const request = { regionCode: '1111051500', industryCode: 'CS100010' }
     const result = aiTestEnvelope(request)
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
     try {
       render(<DashboardUnderTest />)
@@ -398,6 +428,7 @@ describe('실제 백엔드 기준정보 화면', () => {
         `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }
@@ -409,7 +440,7 @@ describe('실제 백엔드 기준정보 화면', () => {
     config.demoMode = false
     const request = { regionCode: '9999999999', industryCode: 'CS100010' }
     const result = aiTestEnvelope(request)
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(result)))
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result)))
     vi.stubGlobal('fetch', fetchMock)
 
     try {
@@ -436,13 +467,18 @@ describe('실제 백엔드 기준정보 화면', () => {
       await user.click(screen.getByRole('button', { name: '업종·지역 조건' }))
       expect(screen.getByLabelText('시·도')).toHaveValue('')
       expect(screen.getByLabelText('시·군·구')).toBeDisabled()
-      expect(screen.getAllByText('경기도 수원시 장안구 가상동').length).toBeGreaterThan(0)
+      expect(
+        within(screen.getByRole('region', { name: '지역과 업종 목록' })).getByText(
+          '경기도 수원시 장안구 가상동',
+        ),
+      ).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: '상권 분석하기' }))
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
       expect(fetchMock).toHaveBeenLastCalledWith(
         `${config.apiBaseUrl}/ai/analyses`,
         expect.objectContaining({ method: 'POST', body: JSON.stringify(request) }),
       )
+      expect(await screen.findByText('AI 응답 확인')).toBeVisible()
     } finally {
       config.demoMode = originalMode
     }

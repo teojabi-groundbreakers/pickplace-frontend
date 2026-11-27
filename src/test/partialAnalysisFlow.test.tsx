@@ -19,6 +19,7 @@ const partial: Analysis = {
   scores: { overall: null, growth: null, risk: null, fit: null },
   factors: [],
   trends: [],
+  competition: [],
   researchForecast: {
     mode: 'experimental_research_only',
     method: 'model_inference',
@@ -41,7 +42,7 @@ const partial: Analysis = {
 }
 
 describe('부분 결과 전체 화면 흐름', () => {
-  it('점수와 추이가 없더라도 연구용 추정과 미제공 안내를 표시한다', () => {
+  it('데이터가 없는 카드를 숨기고 연구용 추정을 표시한다', () => {
     render(
       <MemoryRouter>
         <Dashboard
@@ -55,8 +56,10 @@ describe('부분 결과 전체 화면 흐름', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByText('종합점수는 아직 제공되지 않습니다.')).toBeInTheDocument()
-    expect(screen.getByText('제공된 추이 데이터가 없습니다.')).toBeInTheDocument()
+    expect(screen.queryByText('종합 상권 점수')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '상권 데이터 한눈에' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '점수에 영향을 준 요인' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '주변 상권과 비교하면' })).not.toBeInTheDocument()
     expect(screen.getByText('+5.0%')).toBeVisible()
     expect(screen.getByText('전년 동기 대비')).toBeVisible()
     expect(screen.getByText(/실제 예측 성능은 검증되지 않았습니다/)).toBeVisible()

@@ -11,7 +11,7 @@ import { config } from '../lib/config'
 import { supportsLocalResearch } from '../lib/localResearchForecast'
 import type { ReportReferences } from '../lib/reports'
 import { ScoreCards } from './ScoreCards'
-import { EmptyTrendPanel, TrendChart } from './TrendChart'
+import { TrendChart } from './TrendChart'
 import { ResearchForecast } from './ResearchForecast'
 import { LocalResearchForecast } from './LocalResearchForecast'
 import { AiDiagnosis, RegionalSummaryCard } from './AiDiagnosis'
@@ -237,27 +237,20 @@ export function AnalysisPanel({
                 />
               )
             )}
-            {(!result.ai || result.trends.length > 0) && (
+            {result.ai ? (
+              <TrendChart trends={result.trends} />
+            ) : (
               <div className="primary-grid">
-                {result.trends.length > 0 ? (
-                  <TrendChart trends={result.trends} />
-                ) : (
-                  <EmptyTrendPanel
-                    label="상권 추이"
-                    message="제공된 추이 데이터가 없습니다."
-                  />
-                )}
-                {!result.ai && <Summary analysis={result} />}
+                <TrendChart trends={result.trends} />
+                <Summary analysis={result} />
               </div>
             )}
-            {(!result.ai || result.factors.length > 0) && (
+            {result.factors.length > 0 && (
               <div className="result-factors">
                 <Factors factors={result.factors} />
               </div>
             )}
-            {(!result.ai || result.competition.length > 0) && (
-              <Competition data={result.competition} />
-            )}
+            <Competition data={result.competition} />
             <p className="analysis-footnote">
               {result.source === 'demo'
                 ? '표시된 수치, 평가 및 AI 진단 문구는 모두 예시입니다.'
