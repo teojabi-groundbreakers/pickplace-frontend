@@ -1,5 +1,11 @@
 # 작업 이력
 
+## 2026-11-28 · FE PR #31 병합 전 리뷰
+
+- 열린 FE PR은 [#31](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/31) 1건이었다. `develop`의 `869b749`와 #31의 `4e0017b`를 비교해 빈 결과 카드 숨김, 실제 0 표시, 게시 현황과 AI 보류 사유를 검토했다. AI API 호출, 저장 형식, PDF 구현은 `develop`과 같다.
+- 자동 테스트 45개 파일·369개와 포맷·린트·빌드·diff 검사를 통과했다. 빌드에서는 기존 PDF 번들 용량 경고가 표시됐다. 사용자의 요청에 따라 Codex 리뷰를 기준으로 `develop` 스쿼시 병합을 진행한다.
+- 승인 자료를 사용한 일반 FE → BE → FastAPI 검증은 남아 있어 [FE 이슈 #30](https://github.com/teojabi-groundbreakers/pickplace-frontend/issues/30)에서 추적한다.
+
 ## 2026-11-26 · PR #31과 PR #32 반영 후 develop 충돌 해소
 
 - [PR #31](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/31)에 [PR #32](https://github.com/teojabi-groundbreakers/pickplace-frontend/pull/32)가 반영된 `develop`의 `869b749`를 통합했다. 별도 작업 폴더에서 문서와 분석 화면·검증 로직의 충돌 19개를 해결했다.
